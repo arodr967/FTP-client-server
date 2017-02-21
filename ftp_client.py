@@ -30,7 +30,10 @@ USAGE = "usage: Python ftp hostname [username] [password]"
 RECV_BUFFER = 1024
 FTP_PORT = 21
 
+# TODO: Server Commands
+
 # Commands
+# TODO: Remove the server commands and add the client commands
 CMD_QUIT = "QUIT"
 CMD_HELP = "HELP"
 CMD_LOGIN = "LOGIN"
@@ -86,11 +89,11 @@ def main():
     logged_on = False
     logon_ready = False
     print("FTP Client v1.0")
-    if (len(sys.argv) < 2):
+    if len(sys.argv) < 2:
         print(USAGE)
-    if (len(sys.argv) == 2):
+    if len(sys.argv) == 2:
         hostname = sys.argv[1]
-    if (len(sys.argv) == 4):
+    if len(sys.argv) == 4:
         username = sys.argv[2]
         password = sys.argv[3]
         logon_ready = True
@@ -110,8 +113,11 @@ def main():
     # this is to avoid an extra line from the message
     # received from the ftp server.
     # an alternative is to use sys.stdout.write
-    print(ftp_recv.strip('\n'))
-    #
+    msg = ftp_recv.decode()
+    print(msg.strip('\n'))
+
+    # sys.stdout.write(ftp_recv)
+
     # this is the only time that login is called
     # without relogin
     # otherwise, relogin must be called, which included prompts
@@ -120,11 +126,10 @@ def main():
     if (logon_ready):
         logged_on = login(username, password, ftp_socket)
 
-
     keep_running = True
 
     while keep_running:
-        rinput = raw_input("FTP>> ")
+        rinput = input("FTP>> ")
         tokens = rinput.split()
         # just in case a user types lowercase
         # the command (for example login is converted to LOGIN)
@@ -271,27 +276,27 @@ def ftp_new_dataport(ftp_socket):
     print(CMD_PORT + ' ' + port_arguments)
 
     try:
-        ftp_socket.send(CMD_PORT + ' ' + port_arguments + '\r\n')
+        ftp_socket.send((CMD_PORT + ' ' + port_arguments + '\r\n').encode())
     except socket.timeout:
         print("Socket timeout. Port may have been used recently. wait and try again!")
         return None
     except socket.error:
         print("Socket error. Try again")
         return None
-    msg = ftp_socket.recv(RECV_BUFFER)
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
     return data_socket
 
 
 def noop_ftp(ftp_socket):
-    ftp_socket.send("NOOP\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send("NOOP\n".encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
 def pwd_ftp(ftp_socket):
-    ftp_socket.send("PWD\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send("PWD\n".encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
@@ -299,18 +304,18 @@ def cwd_ftp(tokens, ftp_socket):
 
     if len(tokens) < 2:
         print("CWD requires 1 argument. CWD [remote-directory]")
-        remote_directory = raw_input("Remote directory: ")
+        remote_directory = input("Remote directory: ")
     else:
         remote_directory = tokens[1]
 
-    ftp_socket.send("CWD " + remote_directory + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("CWD " + remote_directory + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
 def cdup_ftp(ftp_socket):
-    ftp_socket.send("CDUP\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send("CDUP\n".encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
@@ -318,12 +323,12 @@ def mkd_ftp(tokens, ftp_socket):
 
     if len(tokens) < 2:
         print("MKD requires 1 argument. MKD [remote-directory]")
-        remote_directory = raw_input("Remote directory: ")
+        remote_directory = input("Remote directory: ")
     else:
         remote_directory = tokens[1]
 
-    ftp_socket.send("MKD " + remote_directory + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("MKD " + remote_directory + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
@@ -331,12 +336,12 @@ def rmd_ftp(tokens, ftp_socket):
 
     if len(tokens) < 2:
         print("RMD requires 1 argument. RMD [remote-directory]")
-        remote_directory = raw_input("Remote directory: ")
+        remote_directory = input("Remote directory: ")
     else:
         remote_directory = tokens[1]
 
-    ftp_socket.send("RMD " + remote_directory + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("RMD " + remote_directory + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
@@ -347,7 +352,7 @@ def type_ftp(tokens, ftp_socket):
 
     if len(tokens) < 2:
         print("TYPE requires at least 1 argument. TYPE [type-character]")
-        type_character = raw_input("Type character: ").upper()
+        type_character = input("Type character: ").upper()
     else:
         type_character = tokens[1].upper()
 
@@ -362,20 +367,20 @@ def type_ftp(tokens, ftp_socket):
 
             if second_type_character == SECOND_TYPE_NON_PRINT:
 
-                ftp_socket.send("TYPE " + TYPE_ASCII + " " + SECOND_TYPE_NON_PRINT + "\n")
-                msg = ftp_socket.recv(RECV_BUFFER)
+                ftp_socket.send(("TYPE " + TYPE_ASCII + " " + SECOND_TYPE_NON_PRINT + "\n").encode())
+                msg = (ftp_socket.recv(RECV_BUFFER)).decode()
                 print(msg.strip('\n'))
 
             elif second_type_character == SECOND_TYPE_TELNET:
 
-                ftp_socket.send("TYPE " + TYPE_ASCII + " " + SECOND_TYPE_TELNET + "\n")
-                msg = ftp_socket.recv(RECV_BUFFER)
+                ftp_socket.send(("TYPE " + TYPE_ASCII + " " + SECOND_TYPE_TELNET + "\n").encode())
+                msg = (ftp_socket.recv(RECV_BUFFER)).decode()
                 print(msg.strip('\n'))
 
             elif second_type_character == SECOND_TYPE_ASA:
 
-                ftp_socket.send("TYPE " + TYPE_ASCII + " " + SECOND_TYPE_ASA + "\n")
-                msg = ftp_socket.recv(RECV_BUFFER)
+                ftp_socket.send(("TYPE " + TYPE_ASCII + " " + SECOND_TYPE_ASA + "\n").encode())
+                msg = (ftp_socket.recv(RECV_BUFFER)).decode()
                 print(msg.strip('\n'))
 
             else:
@@ -383,14 +388,14 @@ def type_ftp(tokens, ftp_socket):
 
         # This is the default if second-type-character is omitted.
         else:
-            ftp_socket.send("TYPE " + TYPE_ASCII + " " + SECOND_TYPE_NON_PRINT + "\n")
-            msg = ftp_socket.recv(RECV_BUFFER)
+            ftp_socket.send(("TYPE " + TYPE_ASCII + " " + SECOND_TYPE_NON_PRINT + "\n").encode())
+            msg = (ftp_socket.recv(RECV_BUFFER)).decode()
             print(msg.strip('\n'))
 
     elif type_character == TYPE_IMAGE:
 
-        ftp_socket.send("TYPE " + TYPE_IMAGE + "\n")
-        msg = ftp_socket.recv(RECV_BUFFER)
+        ftp_socket.send(("TYPE " + TYPE_IMAGE + "\n").encode())
+        msg = (ftp_socket.recv(RECV_BUFFER)).decode()
         print(msg.strip('\n'))
 
     else:
@@ -398,8 +403,8 @@ def type_ftp(tokens, ftp_socket):
 
 
 def stou_ftp(ftp_socket):
-    ftp_socket.send("STOU\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send("STOU\n".encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
@@ -407,12 +412,12 @@ def rnfr_ftp(tokens, ftp_socket):
 
     if len(tokens) < 2:
         print("RNFR requires 1 argument. RNFR [from-filename]")
-        from_filename = raw_input("From filename: ")
+        from_filename = input("From filename: ")
     else:
         from_filename = tokens[1]
 
-    ftp_socket.send("RNFR " + from_filename + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("RNFR " + from_filename + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
 
     print(msg.strip('\n'))
 
@@ -421,12 +426,12 @@ def rnto_ftp(tokens, ftp_socket):
 
     if len(tokens) < 2:
         print("RNTO requires 1 argument. RNTO [to-filename]")
-        to_filename = raw_input("To filename: ")
+        to_filename = input("To filename: ")
     else:
         to_filename = tokens[1]
 
-    ftp_socket.send("RNTO " + to_filename + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("RNTO " + to_filename + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     tokens = msg.split()
 
     if tokens[0] == "503":
@@ -446,11 +451,11 @@ def get_ftp(tokens, ftp_socket, data_socket):
     else:
         filename = remote_filename
 
-    ftp_socket.send("RETR " + remote_filename + "\n")
+    ftp_socket.send(("RETR " + remote_filename + "\n").encode())
 
     print("Attempting to write file. Remote: " + remote_filename + " - Local:" + filename)
 
-    msg = ftp_socket.recv(RECV_BUFFER)
+    msg = ftp_socket.recv(RECV_BUFFER).decode()
     tokens = msg.split()
     if tokens[0] != "150":
         print("Unable to retrieve file. Check that file exists (ls) or that you have permissions")
@@ -476,13 +481,13 @@ def get_ftp(tokens, ftp_socket, data_socket):
 
     sys.stdout.write("|")
     sys.stdout.write("\n")
+
     data_connection.close()
 
-    msg = ftp_socket.recv(RECV_BUFFER)
+    msg = ftp_socket.recv(RECV_BUFFER).decode()
     print(msg.strip('\n'))
 
 
-### put_ftp
 def put_ftp(tokens, ftp_socket, data_socket):
     if len(tokens) < 2:
         print("put [filename]. Please specify filename")
@@ -500,8 +505,8 @@ def put_ftp(tokens, ftp_socket, data_socket):
     filestat = os.stat(local_filename)
     filesize = filestat.st_size
 
-    ftp_socket.send("STOR " + filename + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("STOR " + filename + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
     print("Attempting to send file. Local: " + local_filename + " - Remote:" + filename + " - Size:" + str(filesize))
@@ -524,42 +529,44 @@ def put_ftp(tokens, ftp_socket, data_socket):
 
     sys.stdout.write("|")
     sys.stdout.write("\n")
+
     data_connection.close()
 
-    msg = ftp_socket.recv(RECV_BUFFER)
+    msg = ftp_socket.recv(RECV_BUFFER).decode()
     print(msg.strip('\n'))
 
 
 def ls_ftp(tokens, ftp_socket, data_socket):
     if len(tokens) > 1:
-        ftp_socket.send("LIST " + tokens[1] + "\n")
+        ftp_socket.send(("LIST " + tokens[1] + "\n").encode())
     else:
-        ftp_socket.send("LIST\n")
+        ftp_socket.send("LIST\n".encode())
 
-    msg = ftp_socket.recv(RECV_BUFFER)
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
     data_connection, data_host = data_socket.accept()
 
-    msg = data_connection.recv(RECV_BUFFER)
+    msg = data_connection.recv(RECV_BUFFER).decode()
     while len(msg) > 0:
         print(msg.strip('\n'))
         msg = data_connection.recv(RECV_BUFFER)
 
-    msg = ftp_socket.recv(RECV_BUFFER)
-    print(msg.strip('\n'))
     data_connection.close()
+
+    msg = ftp_socket.recv(RECV_BUFFER).decode()
+    print(msg.strip('\n'))
 
 
 def stor_ftp(tokens, ftp_socket):
     if len(tokens) < 2:
         print("STOR requires 1 argument. STOR [remote-filename]")
-        remote_filename = raw_input("Remote filename: ")
+        remote_filename = input("Remote filename: ")
     else:
         remote_filename = tokens[1]
 
-    ftp_socket.send("STOR " + remote_filename + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("STOR " + remote_filename + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
@@ -568,9 +575,9 @@ def delete_ftp(tokens, ftp_socket):
         print("You must specify a file to delete")
     else:
         print("Attempting to delete " + tokens[1])
-        ftp_socket.send("DELE " + tokens[1] + "\n")
+        ftp_socket.send(("DELE " + tokens[1] + "\n").encode())
 
-    msg = ftp_socket.recv(RECV_BUFFER)
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
 
@@ -585,8 +592,8 @@ def logout(lin, ftp_socket):
     print("Attempting to logged out")
     msg = ""
     try:
-        ftp_socket.send("QUIT\n")
-        msg = ftp_socket.recv(RECV_BUFFER)
+        ftp_socket.send("QUIT\n".encode())
+        msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     except socket.error:
         print("Problems logging out. Try logout again. Do not login if you haven't logged out!")
         return False
@@ -611,15 +618,15 @@ def relogin(username, password, logged_on, tokens, hostname, ftp_socket):
     if len(tokens) < 3:
         print("LOGIN requires 2 arguments. LOGIN [username] [password]")
         print("You will be prompted for username and password now")
-        username = raw_input("Username: ")
-        password = raw_input("Password: ")
+        username = input("Username: ")
+        password = input("Password: ")
     else:
         username = tokens[1]
         password = tokens[2]
 
     if ftp_socket is None:
         ftp_socket = ftp_connecthost(hostname)
-        ftp_recv = ftp_socket.recv(RECV_BUFFER)
+        ftp_recv = ftp_socket.recv(RECV_BUFFER).decode()
         print(ftp_recv.strip('\n'))
 
     logged_on = login(username, password, ftp_socket)
@@ -631,18 +638,18 @@ def user_ftp(username, tokens, ftp_socket, hostname):
 
     if ftp_socket is None:
         ftp_socket = ftp_connecthost(hostname)
-        ftp_recv = ftp_socket.recv(RECV_BUFFER)
+        ftp_recv = ftp_socket.recv(RECV_BUFFER).decode()
         print(ftp_recv.strip('\n'))
 
     if len(tokens) < 2:
         print("USER requires 1 argument. USER [username]")
         print("You will be prompted for username now")
-        username = raw_input("User: ")
+        username = input("User: ")
     else:
         username = tokens[1]
 
-    ftp_socket.send("USER " + username + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("USER " + username + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
 
     return username, ftp_socket
@@ -654,18 +661,18 @@ def pass_ftp(password, tokens, ftp_socket, hostname, logged_on):
     if len(tokens) < 2:
         print("PASS requires 1 argument. PASS [password]")
         print("You will be prompted for password now")
-        password = raw_input("Password: ")
+        password = input("Password: ")
     else:
         password = tokens[1]
 
-    ftp_socket.send("PASS " + password + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("PASS " + password + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     tokens = msg.split()
     print(msg.strip('\n'))
 
     if ftp_socket is None:
         ftp_socket = ftp_connecthost(hostname)
-        ftp_recv = ftp_socket.recv(RECV_BUFFER)
+        ftp_recv = ftp_socket.recv(RECV_BUFFER).decode()
         print(ftp_recv.strip('\n'))
 
     if len(tokens) > 0 and tokens[0] != "230":
@@ -684,11 +691,11 @@ def login(user, passw, ftp_socket):
 
     print("Attempting to login user " + user)
     # send command user
-    ftp_socket.send("USER " + user + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("USER " + user + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
-    ftp_socket.send("PASS " + passw + "\n")
-    msg = ftp_socket.recv(RECV_BUFFER)
+    ftp_socket.send(("PASS " + passw + "\n").encode())
+    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     tokens = msg.split()
     print(msg.strip('\n'))
     if len(tokens) > 0 and tokens[0] != "230":
