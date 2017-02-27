@@ -1,0 +1,5 @@
+user1 pass1 admin
+user2 pass2 user
+user3 pass3 user
+user4 pass4 notallowed
+user5 pass5 locked

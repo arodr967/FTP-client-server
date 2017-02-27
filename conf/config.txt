@@ -1,0 +1,8 @@
+data_port_max: 34999
+data_port_min: 34500
+default_ftp_port: 2129
+default_mode: Active
+default_debug_mode: off
+default_verbose_mode: off
+default_test_file: test1.txt
+default_log_file: client/ftp_client.log

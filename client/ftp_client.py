@@ -1,38 +1,19 @@
-# FTP Client
-# Contributed by L.A.A.M.
-# ********************************************************************************
-# **                   **
-# ** References                                                                 **
-# ** http://www.slacksite.com/other/ftp.html#active                             **
-# ** https://www.ietf.org/rfc/rfc959.txt                                        **
-# ** Computer-Networking Top-Down Approach 6th Edition by Kurose and Ross       **
-# ** computer ftp client                                                        **
-# **                                                                            **
-# ** Tested with inet.cis.fiu.edu  -- FIXED Port 21                             **
-# ** Commands are not case sensitive                                            **
-# **                                                                            **
-# ** Built for Python 2.7.x. FTP Client Active Mode Only                        **
-# ** Usage: Python ftp.py hostname [username] [password]                        **
-# ** username and password are optional when invoking ftp.py                    **
-# ** if not supplied, use command LOGIN                                         **
-# ** Inside of ftp client, you can type HELP for more information               **
-# ********************************************************************************
-
-# import necessary packages.
+from socket import *
 import os
 import os.path
 import errno
 import traceback
 import sys
-from socket import *
+
 
 # Global constants
 USAGE = "usage: Python ftp hostname [username] [password]"
 
 RECV_BUFFER = 1024
-FTP_PORT = 21
+FTP_PORT = 2129
 
 # Commands
+
 CMD_QUIT = "QUIT"
 CMD_BYE = "BYE"
 CMD_EXIT = "EXIT"
@@ -41,7 +22,6 @@ CMD_LOGIN = "LOGIN"
 CMD_LOGOUT = "LOGOUT"
 CMD_LS = "LS"
 CMD_PWD = "PWD"
-CMD_PORT = "PORT"
 CMD_DELETE = "DELETE"
 CMD_MDELETE = "MDELETE"
 CMD_PUT = "PUT"
@@ -52,18 +32,23 @@ CMD_USER = "USER"
 CMD_CD = "CD"
 CMD_CDUP = "CDUP"
 CMD_MKDIR = "MKDIR"
-CMD_STOU = "STOU"
 CMD_RENAME = "RENAME"
 CMD_RMDIR = "RMDIR"
 CMD_ASCII = "ASCII"
 CMD_IMAGE = "IMAGE"
+
+# TODO
+
+CMD_STOU = "STOU"
 CMD_APPEND = "APPEND"
+CMD_PORT = "PORT"
+CMD_LCD = "LCD"
 
 
 # The data port starts at high number (to avoid privileges port 1-1024)
 # the ports ranges from MIN to MAX
-DATA_PORT_MAX = 61000
-DATA_PORT_MIN = 60020
+DATA_PORT_MAX = 34999
+DATA_PORT_MIN = 34500
 # data back log for listening.
 DATA_PORT_BACKLOG = 1
 
@@ -76,14 +61,12 @@ next_data_port = 1
 # entry point main()
 def main():
 
-    hostname = "cnt4713.cis.fiu.edu"
-    # TODO: undo this
-    username = "classftp"
-    password = "micarock520"
+    hostname = "cnt4713.cs.fiu.edu"
+    username = ""
+    password = ""
 
     logged_on = False
-    # TODO: undo this
-    logon_ready = True
+    logon_ready = False
     print("FTP Client v1.0")
 
     if len(sys.argv) < 2:
@@ -103,10 +86,9 @@ def main():
     print("Commands are NOT case sensitive\n")
 
     ftp_socket = ftp_connecthost(hostname)
-    ftp_recv = ftp_socket.recv(RECV_BUFFER)
-    ftp_code = ftp_recv[:3]
+    ftp_socket.send(str_msg_encode("NOOP \n"))
 
-    print(ftp_recv, True)
+    # print(str_msg_decode(ftp_recv, True))
 
     if logon_ready:
         logged_on = login(username, password, ftp_socket)
@@ -119,7 +101,7 @@ def main():
             if user_input is None or user_input.strip() == '':
                 continue
             tokens = user_input.split()
-            cmd_msg, logged_on, ftp_socket = run_commands(username, password, tokens, logged_on, ftp_socket, hostname)
+            cmd_msg, logged_on, ftp_socket = run_commands(tokens, logged_on, ftp_socket)
             if cmd_msg != "":
                 print(cmd_msg)
         except OSError as e:
@@ -263,7 +245,7 @@ def ftp_connecthost(hostname):
     ftp_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     ftp_socket.connect((hostname, FTP_PORT))
 
-    print(ftp_socket)
+    print("Connected to " + hostname)
 
     return ftp_socket
 
