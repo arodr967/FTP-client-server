@@ -13,10 +13,6 @@ thread_list = []
 RECV_BUFFER = 1024
 current_directory = os.path.abspath(".")
 
-# Only used by Admin user
-# Connection is to start and stop the ftp server
-SERVICE_PORT = 2199
-
 # Commands
 
 CMD_USER = "USER"
@@ -38,10 +34,6 @@ CMD_LIST = "LIST"
 CMD_NOOP = "NOOP"
 CMD_PORT = "PORT"
 CMD_QUIT = "QUIT"
-
-# Fake Command
-
-CMD_LOGOUT = "LOGOUT"
 
 
 def server_thread(connection_socket, address):
