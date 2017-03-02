@@ -12,6 +12,7 @@ import os
 thread_list = []
 RECV_BUFFER = 1024
 current_directory = os.path.abspath(".")
+base_directory = os.path.abspath(".")
 
 # Commands
 
@@ -38,6 +39,9 @@ CMD_QUIT = "QUIT"
 
 def server_thread(connection_socket, address):
 
+    global current_directory
+    global base_directory
+
     try:
         print("Thread Server Entering Now...")
         print(address)
@@ -45,9 +49,13 @@ def server_thread(connection_socket, address):
 
         while True:
 
+            print("Current Directory: " + current_directory)
+            print("Base Directory: " + base_directory)
             print("TID = ", threading.current_thread())
 
             msg = str_msg_decode(connection_socket.recv(RECV_BUFFER))
+
+            print("Received command: " + msg)
 
             if msg[0:4] == CMD_QUIT:
                 quit_ftp(connection_socket, local_thread)
@@ -58,7 +66,7 @@ def server_thread(connection_socket, address):
             elif msg[0:3] == CMD_CWD:
                 cwd_ftp(connection_socket, local_thread, msg)
             elif msg[0:4] == CMD_CDUP:
-                cdup_ftp(connection_socket, local_thread, msg)
+                cdup_ftp(connection_socket, local_thread)
             elif msg[0:4] == CMD_RETR:
                 retr_ftp(connection_socket, local_thread, msg)
             elif msg[0:4] == CMD_STOR:
@@ -80,7 +88,7 @@ def server_thread(connection_socket, address):
             elif msg[0:3] == CMD_MKD:
                 mkd_ftp(connection_socket, local_thread, msg)
             elif msg[0:3] == CMD_PWD:
-                pwd_ftp(connection_socket, local_thread, msg)
+                pwd_ftp(connection_socket, local_thread)
             elif msg[0:4] == CMD_LIST:
                 list_ftp(connection_socket, local_thread, msg)
             elif msg[0:4] == CMD_NOOP:
@@ -113,11 +121,45 @@ def pass_ftp(connection_socket, local_thread, msg):
     connection_socket.send(str_msg_encode(local_thread))
 
 
+# Change Working Directory (CWD)
 def cwd_ftp(connection_socket, local_thread, msg):
+    global current_directory
+    global base_directory
+
+    directory = msg[4:-1]
+
+    if directory == "/":
+        current_directory = base_directory
+        local_thread = "250 CWD command successful\r\n"
+    elif directory[0] == '/':
+        path = os.path.join(base_directory, directory[1:])
+
+        if os.path.exists(path):
+            current_directory = path
+            local_thread = "250 CWD command successful\r\n"
+        else:
+            local_thread = "550 " + directory[1:] + ": No such file or directory\r\n"
+    else:
+        path = os.path.join(current_directory, directory)
+
+        if os.path.exists(path):
+            current_directory = path
+            local_thread = "250 CWD command successful\r\n"
+        else:
+            local_thread = "550 " + directory + ": No such file or directory\r\n"
+
     connection_socket.send(str_msg_encode(local_thread))
 
 
-def cdup_ftp(connection_socket, local_thread, msg):
+# Go back 1 directory
+def cdup_ftp(connection_socket, local_thread):
+    global current_directory
+    global base_directory
+
+    if not os.path.samefile(current_directory, base_directory):
+        current_directory = os.path.abspath(os.path.join(current_directory, ".."))
+
+    local_thread = "250 CDUP command successful\r\n"
     connection_socket.send(str_msg_encode(local_thread))
 
 
@@ -153,31 +195,70 @@ def dele_ftp(connection_socket, local_thread, msg):
     connection_socket.send(str_msg_encode(local_thread))
 
 
+# ReMove Directory (RMD)
 def rmd_ftp(connection_socket, local_thread, msg):
+    global current_directory
+
+    remove_directory = msg[4:-1]
+    path = os.path.join(current_directory, remove_directory)
+
+    if remove_directory == "":
+        local_thread = "501 Syntax error in parameters or arguments.\r\n"
+    elif os.path.exists(path):
+        os.rmdir(path)
+        local_thread = "250 RMD command successful\r\n"
+    else:
+        local_thread = "550 " + remove_directory + ": No such file or directory\r\n"
+
     connection_socket.send(str_msg_encode(local_thread))
 
 
+# MaKe Directory (MKD)
 def mkd_ftp(connection_socket, local_thread, msg):
+    global current_directory
+
     new_directory = msg[4:-1]
-    new_path = os.path.join(current_directory, new_directory)
-    os.mkdir(new_path)
-    if not os.path.isdir(new_path):
-        local_thread = "257 /" + new_directory + " - Directory successfully created\r\n"
-        connection_socket.send(str_msg_encode(local_thread))
+    path = os.path.join(current_directory, new_directory);
+
+    if not os.path.isdir(path):
+        os.mkdir(path)
     else:
-        local_thread = ""
+        for dirpath, dirnames, files in os.walk("./" + new_directory):
+            if files != [] or dirnames != []:
+                local_thread = "550 " + new_directory + ": Directory not empty\r\n"
+                connection_socket.send(str_msg_encode(local_thread))
+                return
+
+    local_thread = "257 /" + new_directory + " - Directory successfully created\r\n"
+    connection_socket.send(str_msg_encode(local_thread))
 
 
-def pwd_ftp(connection_socket, local_thread, msg):
+# Print Working Directory (PWD)
+def pwd_ftp(connection_socket, local_thread):
+    global current_directory
+    global base_directory
+
+    directory = os.path.relpath(current_directory, base_directory)
+
+    if directory == ".":
+        directory = ""
+
+    local_thread = "257 /" + directory + " is the current directory\r\n"
     connection_socket.send(str_msg_encode(local_thread))
 
 
 def list_ftp(connection_socket, local_thread, msg):
+    local_thread = "150 Opening ASCII mode data connection for file list"
+    connection_socket.send(str_msg_encode(local_thread))
+
+    # TODO: print list
+
+    local_thread = "226 Transfer complete"
     connection_socket.send(str_msg_encode(local_thread))
 
 
 def noop_ftp(connection_socket, local_thread):
-    local_thread = "200 OK.\r\n"
+    local_thread = "200 NOOP command successful.\r\n"
     connection_socket.send(str_msg_encode(local_thread))
 
 
