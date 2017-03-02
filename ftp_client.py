@@ -10,7 +10,10 @@ import sys
 USAGE = "usage: Python ftp hostname [username] [password]"
 
 RECV_BUFFER = 1024
+
+# My Port
 FTP_PORT = 2129
+# FTP_PORT = 21
 
 # Commands
 
@@ -21,6 +24,7 @@ CMD_HELP = "HELP"
 CMD_LOGIN = "LOGIN"
 CMD_LOGOUT = "LOGOUT"
 CMD_LS = "LS"
+CMD_DIR = "DIR"
 CMD_PWD = "PWD"
 CMD_DELETE = "DELETE"
 CMD_MDELETE = "MDELETE"
@@ -36,19 +40,37 @@ CMD_RENAME = "RENAME"
 CMD_RMDIR = "RMDIR"
 CMD_ASCII = "ASCII"
 CMD_IMAGE = "IMAGE"
+CMD_BINARY = "BINARY"
+CMD_SUNIQUE = "SUNIQUE"
+CMD_PORT = "PORT"
 
 # TODO
 
-CMD_STOU = "STOU"
+CMD_OPEN = "OPEN"
+CMD_FTP = "FTP"
 CMD_APPEND = "APPEND"
-CMD_PORT = "PORT"
 CMD_LCD = "LCD"
+CMD_DISCONNECT = "DISCONNECT"
+CMD_NOOP = "NOOP"
+CMD_RHELP = "RHELP"
+CMD_TYPE = "TYPE"
+CMD_USAGE = "USAGE"
+CMD_VERBOSE = "VERBOSE"
+CMD_CLOSE = "CLOSE"
+CMD_DEBUG = "DEBUG"
+CMD_LLS = "LLS"
+CMD_LPWD = "LPWD"
 
 
 # The data port starts at high number (to avoid privileges port 1-1024)
 # the ports ranges from MIN to MAX
+# My data ports
 DATA_PORT_MAX = 34999
 DATA_PORT_MIN = 34500
+
+# DATA_PORT_MAX = 61000
+# DATA_PORT_MIN = 60020
+
 # data back log for listening.
 DATA_PORT_BACKLOG = 1
 
@@ -57,16 +79,20 @@ DATA_PORT_BACKLOG = 1
 # a port between DATA_POR_MIN and DATA_PORT_MAX
 next_data_port = 1
 
+hostname = "cnt4713.cs.fiu.edu"
+username = "classftp"
+password = "micarock520"
+
 
 # entry point main()
 def main():
 
-    hostname = "cnt4713.cs.fiu.edu"
-    username = ""
-    password = ""
+    global username
+    global password
+    global hostname
 
-    logged_on = False
-    logon_ready = False
+    logged_on = True
+    logon_ready = True
     print("FTP Client v1.0")
 
     if len(sys.argv) < 2:
@@ -87,8 +113,6 @@ def main():
 
     ftp_socket = ftp_connecthost(hostname)
     ftp_socket.send(str_msg_encode("NOOP \n"))
-
-    # print(str_msg_decode(ftp_recv, True))
 
     if logon_ready:
         logged_on = login(username, password, ftp_socket)
@@ -118,7 +142,11 @@ def main():
     sys.exit()
 
 
-def run_commands(username, password, tokens, logged_on, ftp_socket, hostname):
+def run_commands(tokens, logged_on, ftp_socket):
+
+    global username
+    global password
+    global hostname
 
     cmd = tokens[0].upper()
 
@@ -127,6 +155,7 @@ def run_commands(username, password, tokens, logged_on, ftp_socket, hostname):
         return "", logged_on, ftp_socket
 
     if cmd == "!":
+        ftp_socket.close()
         sys.exit()
         return "", logged_on, ftp_socket
 
@@ -154,8 +183,8 @@ def run_commands(username, password, tokens, logged_on, ftp_socket, hostname):
         rmdir_ftp(tokens, ftp_socket)
         return "", logged_on, ftp_socket
 
-    if cmd == CMD_STOU:
-        stou_ftp(ftp_socket)
+    if cmd == CMD_SUNIQUE:
+        sunique_ftp(ftp_socket)
         return "", logged_on, ftp_socket
 
     if cmd == CMD_RENAME:
@@ -166,7 +195,7 @@ def run_commands(username, password, tokens, logged_on, ftp_socket, hostname):
         ascii_ftp(ftp_socket)
         return "", logged_on, ftp_socket
 
-    if cmd == CMD_IMAGE:
+    if cmd == CMD_IMAGE or cmd == CMD_BINARY:
         image_ftp(ftp_socket)
         return "", logged_on, ftp_socket
 
@@ -178,7 +207,7 @@ def run_commands(username, password, tokens, logged_on, ftp_socket, hostname):
         else:
             return "[GET] Failed to get data port. Try again.", logged_on, ftp_socket
 
-    if cmd == CMD_LS:
+    if cmd == CMD_LS or cmd == CMD_DIR:
         data_socket = ftp_new_dataport(ftp_socket)
         if data_socket is not None:
             ls_ftp(tokens, ftp_socket, data_socket)
@@ -297,7 +326,7 @@ def pwd_ftp(ftp_socket):
 
     ftp_socket.send(str_msg_encode("PWD\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
-    sys.stdout(str_msg_decode(msg, True))
+    sys.stdout.write(str_msg_decode(msg, True))
 
 
 def cd_ftp(tokens, ftp_socket):
@@ -370,7 +399,7 @@ def image_ftp(ftp_socket):
     sys.stdout.write(str_msg_decode(msg, True))
 
 
-def stou_ftp(ftp_socket):
+def sunique_ftp(ftp_socket):
     ftp_socket.send("STOU\n".encode())
     msg = (ftp_socket.recv(RECV_BUFFER)).decode()
     print(msg.strip('\n'))
@@ -597,6 +626,7 @@ def quit_ftp(lin, ftp_socket):
 
     # print("Quitting...")
     logged_on, ftp_socket = logout(lin, ftp_socket)
+
     # print("Thank you for using FTP")
     try:
         if ftp_socket is not None:
@@ -604,10 +634,6 @@ def quit_ftp(lin, ftp_socket):
     except socket.error:
         print("Socket was not able to be close. It may have been closed already")
     sys.exit()
-
-
-# def exclamation_ftp():
-#     sys.exit()
 
 
 def relogin(username, password, logged_on, tokens, hostname, ftp_socket):
@@ -647,7 +673,7 @@ def user_ftp(username, password, tokens, ftp_socket, hostname):
         password = tokens[2]
     else:
         print("Third argument is not supported.")
-        return;
+        return
 
     ftp_socket.send(str_msg_encode("USER " + username + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
