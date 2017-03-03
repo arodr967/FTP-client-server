@@ -43,24 +43,23 @@ CMD_IMAGE = "IMAGE"
 CMD_BINARY = "BINARY"
 CMD_SUNIQUE = "SUNIQUE"
 CMD_PORT = "PORT"
+CMD_DISCONNECT = "DISCONNECT"
+CMD_CLOSE = "CLOSE"
+CMD_NOOP = "NOOP"
+CMD_LCD = "LCD"
 
 # TODO
 
 CMD_OPEN = "OPEN"
 CMD_FTP = "FTP"
 CMD_APPEND = "APPEND"
-CMD_LCD = "LCD"
-CMD_DISCONNECT = "DISCONNECT"
-CMD_NOOP = "NOOP"
 CMD_RHELP = "RHELP"
 CMD_TYPE = "TYPE"
-CMD_USAGE = "USAGE"
 CMD_VERBOSE = "VERBOSE"
-CMD_CLOSE = "CLOSE"
 CMD_DEBUG = "DEBUG"
 CMD_LLS = "LLS"
 CMD_LPWD = "LPWD"
-
+CMD_USAGE = "USAGE"
 
 # The data port starts at high number (to avoid privileges port 1-1024)
 # the ports ranges from MIN to MAX
@@ -80,8 +79,12 @@ DATA_PORT_BACKLOG = 1
 next_data_port = 1
 
 hostname = "cnt4713.cs.fiu.edu"
-username = "classftp"
-password = "micarock520"
+username = ""
+password = ""
+sunique = False
+current_directory = os.path.abspath(".")
+base_directory = os.path.abspath("/")
+type = "A"
 
 
 # entry point main()
@@ -91,8 +94,9 @@ def main():
     global password
     global hostname
 
-    logged_on = True
-    logon_ready = True
+    logged_on = False
+    logon_ready = False
+
     print("FTP Client v1.0")
 
     if len(sys.argv) < 2:
@@ -112,7 +116,8 @@ def main():
     print("Commands are NOT case sensitive\n")
 
     ftp_socket = ftp_connecthost(hostname)
-    ftp_socket.send(str_msg_encode("NOOP \n"))
+    ftp_recv = ftp_socket.recv(RECV_BUFFER)
+    print(str_msg_decode(ftp_recv))
 
     if logon_ready:
         logged_on = login(username, password, ftp_socket)
@@ -122,12 +127,16 @@ def main():
     while keep_running:
         try:
             user_input = input("ftp> ")
-            if user_input is None or user_input.strip() == '':
+
+            if user_input is None or user_input.strip() == "":
                 continue
+
             tokens = user_input.split()
             cmd_msg, logged_on, ftp_socket = run_commands(tokens, logged_on, ftp_socket)
+
             if cmd_msg != "":
                 print(cmd_msg)
+
         except OSError as e:
             print("Socket error:", e)
             str_error = str(e)
@@ -136,7 +145,6 @@ def main():
 
     try:
         ftp_socket.close()
-        print("Thank you for using FTP 1.0")
     except OSError as e:
         print("Socket error:", e)
     sys.exit()
@@ -163,12 +171,24 @@ def run_commands(tokens, logged_on, ftp_socket):
         help_ftp()
         return "", logged_on, ftp_socket
 
+    if cmd == CMD_RHELP:
+        rhelp_ftp()
+        return "", logged_on, ftp_socket
+
+    if cmd == CMD_NOOP:
+        noop_ftp(ftp_socket)
+        return "", logged_on, ftp_socket
+
     if cmd == CMD_PWD:
         pwd_ftp(ftp_socket)
         return "", logged_on, ftp_socket
 
     if cmd == CMD_CD:
         cd_ftp(tokens, ftp_socket)
+        return "", logged_on, ftp_socket
+
+    if cmd == CMD_LCD:
+        lcd_ftp(tokens)
         return "", logged_on, ftp_socket
 
     if cmd == CMD_CDUP:
@@ -184,7 +204,7 @@ def run_commands(tokens, logged_on, ftp_socket):
         return "", logged_on, ftp_socket
 
     if cmd == CMD_SUNIQUE:
-        sunique_ftp(ftp_socket)
+        sunique_ftp()
         return "", logged_on, ftp_socket
 
     if cmd == CMD_RENAME:
@@ -219,7 +239,7 @@ def run_commands(tokens, logged_on, ftp_socket):
         logged_on = user_ftp(username, password, tokens, ftp_socket, hostname)
         return "", logged_on, ftp_socket
 
-    if cmd == CMD_LOGOUT:
+    if cmd == CMD_LOGOUT or cmd == CMD_CLOSE or cmd == CMD_DISCONNECT:
         logged_on, ftp_socket = logout(logged_on, ftp_socket)
         return "", logged_on, ftp_socket
 
@@ -322,11 +342,52 @@ def ftp_new_dataport(ftp_socket):
     return data_socket
 
 
+def noop_ftp(ftp_socket):
+
+    ftp_socket.send(str_msg_encode("NOOP\n"))
+    msg = ftp_socket.recv(RECV_BUFFER)
+    sys.stdout.write(str_msg_decode(msg, True))
+
+
 def pwd_ftp(ftp_socket):
 
     ftp_socket.send(str_msg_encode("PWD\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     sys.stdout.write(str_msg_decode(msg, True))
+
+
+def lcd_ftp(tokens):
+    global current_directory
+    global base_directory
+
+    if len(tokens) is 2:
+        local_directory = tokens[1]
+    else:
+        local_directory = ""
+
+    if local_directory == "":
+        print("Local directory now " + current_directory)
+        return
+
+    if local_directory == "/":
+        current_directory = base_directory
+        print("Local directory now " + current_directory)
+    elif local_directory[0] == "/":
+        path = os.path.join(base_directory, local_directory[1:])
+
+        if os.path.exists(path):
+            current_directory = path
+            print("Local directory now " + current_directory)
+        else:
+            print("local: " + local_directory[1:] + ": No such file or directory")
+    else:
+        path = os.path.join(current_directory, local_directory)
+
+        if os.path.exists(path):
+            current_directory = path
+            print("Local directory now " + current_directory)
+        else:
+            print("local: " + local_directory + ": No such file or directory")
 
 
 def cd_ftp(tokens, ftp_socket):
@@ -399,10 +460,15 @@ def image_ftp(ftp_socket):
     sys.stdout.write(str_msg_decode(msg, True))
 
 
-def sunique_ftp(ftp_socket):
-    ftp_socket.send("STOU\n".encode())
-    msg = (ftp_socket.recv(RECV_BUFFER)).decode()
-    print(msg.strip('\n'))
+def sunique_ftp():
+
+    global sunique
+    sunique = not sunique
+
+    if sunique:
+        print("Store unique on.")
+    else:
+        print("Story unique off.")
 
 
 def rename_ftp(tokens, ftp_socket):
@@ -502,6 +568,8 @@ def get_ftp(tokens, ftp_socket, data_socket):
 
 def put_ftp(tokens, ftp_socket, data_socket):
 
+    global sunique
+
     if len(tokens) is 1:
         local_file = input("(local-file) ")
         remote_file = input("(remote-file) ")
@@ -517,7 +585,11 @@ def put_ftp(tokens, ftp_socket, data_socket):
         print("local: " + local_file + ": No such file or directory")
         return
 
-    ftp_socket.send(str_msg_encode("STOR " + remote_file + "\n"))
+    if not sunique:
+        ftp_socket.send(str_msg_encode("STOR " + remote_file + "\n"))
+    else:
+        ftp_socket.send(str_msg_encode("STOU " + remote_file + "\n"))
+
     msg = ftp_socket.recv(RECV_BUFFER)
     sys.stdout.write(str_msg_decode(msg, True))
 
@@ -569,6 +641,9 @@ def delete_ftp(tokens, ftp_socket):
     if len(tokens) is 1:
         remote_file = input("(remote-file) ")
 
+        if remote_file is "":
+            print("usage: delete remote-file")
+            return
     else:
         remote_file = tokens[1]
 
@@ -600,34 +675,28 @@ def mdelete_ftp(tokens, ftp_socket):
                 sys.stdout.write(str_msg_decode(msg, True))
 
 
-def logout(lin, ftp_socket):
+def logout(logged_on, ftp_socket):
 
-    if ftp_socket is None:
-        # print("Your connection was already terminated.")
+    if ftp_socket is None or logged_on is False:
+        print("Not connected.")
         return False, ftp_socket
 
-    # if lin is False:
-    #     print("You are not logged in. Logout command will be sent anyways")
-
-    # print("Attempting to logged out")
-    msg = ""
     try:
         ftp_socket.send(str_msg_encode("QUIT\n"))
         msg = ftp_socket.recv(RECV_BUFFER)
+        sys.stdout.write(str_msg_decode(msg, True))
+        ftp_socket = None
     except socket.error:
-        print("Problems logging out. Try logout again. Do not login if you haven't logged out!")
+        print("Error logging out. Try logout again. Do not login if you haven't logged out!")
         return False
-    sys.stdout.write(str_msg_decode(msg, True))
-    ftp_socket = None
-    return False, ftp_socket  # it should only be true if logged in and not able to logout
+
+    return False, ftp_socket
 
 
-def quit_ftp(lin, ftp_socket):
+def quit_ftp(logged_on, ftp_socket):
 
-    # print("Quitting...")
-    logged_on, ftp_socket = logout(lin, ftp_socket)
+    logged_on, ftp_socket = logout(logged_on, ftp_socket)
 
-    # print("Thank you for using FTP")
     try:
         if ftp_socket is not None:
             ftp_socket.close()
@@ -691,7 +760,6 @@ def user_ftp(username, password, tokens, ftp_socket, hostname):
 
     if len(tokens) > 0 and tokens[0] != "230":
         print("Login failed.")
-        # TODO: close connection after first failed attempt
         return False
     else:
         return True
@@ -699,15 +767,17 @@ def user_ftp(username, password, tokens, ftp_socket, hostname):
 
 def login(username, password, ftp_socket):
 
-    if username is None or username.strip() is "":
-        print("Username is blank. Try again")
-        return False
+    global hostname
 
-    print("Attempting to login user " + username)
+    if username is None or username.strip() is "":
+        username = input("Name (" + hostname + "): ")
 
     ftp_socket.send(str_msg_encode("USER " + username + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     print(str_msg_decode(msg, True))
+
+    if password is None or password.strip() is "":
+        password = input("Password: ")
 
     ftp_socket.send(str_msg_encode("PASS " + password + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -717,28 +787,42 @@ def login(username, password, ftp_socket):
     tokens = str_value.split()
 
     if len(tokens) > 0 and tokens[0] != "230":
-        print("Not able to login. Please check your username or password. Try again!")
+        print("Login failed.")
         return False
     else:
         return True
 
 
 def help_ftp():
-    print("FTP Help")
-    print("Commands are not case sensitive")
-    print("")
-    print("COMMAND\t\t Description")
-    print(CMD_QUIT + "\t\t Exits ftp and attempts to logout")
-    print(CMD_LOGIN + "\t\t Login. It expects username and password. LOGIN [username] [password]")
-    print(CMD_LOGOUT + "\t\t Logout from ftp but not client")
-    print(CMD_LS + "\t\t prints out remote directory content")
-    print(CMD_PWD + "\t\t prints current (remote) working directory")
-    print(CMD_GET + "\t\t gets remote file. GET remote_file [name_in_local_system]")
-    print(CMD_PUT + "\t\t sends local file. PUT local_file [name_in_remote_system]")
-    print(CMD_DELETE + "\t\t deletes remote file. DELETE [remote_file]")
-    print(CMD_USER + "\t\t Send this command to begin the login process. USER [username]")
-    print(CMD_CDUP + "\t\t Makes the parent of the current directory be the current directory.")
-    print(CMD_HELP + "\t\t prints help FTP Client")
+    # TODO: Accept 1 argument which which will give a brief description of selected command.
+
+    print("Commands may be abbreviated.  Commands are:\n\n"
+          "!		dir		    mdelete \n"
+          "?		disconnect	mdir    \n"
+          "exit		put         type    \n"
+          "append	mkdir		pwd     \n"
+          "ascii	get			quit    \n"
+          "sunique  binary      recv    \n"
+          "bye		help        debug   \n"
+          "cd		image		rhelp   \n"
+          "cdup		rename		user    \n"
+          "close	open		verbose \n"
+          "lcd		rmdir		delete  \n"
+          "ls                           \n")
+
+
+def rhelp_ftp():
+    # TODO: Accept 1 argument which which will give a brief description of selected command.
+
+    print("214-The following commands are recognized (* =>'s unimplemented):\n"
+          "214-CWD     XCWD*   CDUP    XCUP*   SMNT*   QUIT    PORT    PASV*)\n"
+          "214-EPRT*   EPSV*   ALLO*   RNFR    RNTO    DELE    MDTM*   RMD\n"
+          "214-XRMD*   MKD     XMKD*   PWD     XPWD*   SIZE*   SYST*   HELP\n"
+          "214-NOOP    FEAT*   OPTS*   AUTH*   CCC*    CONF*   ENC*    MIC*\n"
+          "214-PBSZ*   PROT*   TYPE    STRU*   MODE*   RETR    STOR    STOU\n"
+          "214-APPE    REST*   ABOR*   USER    PASS    ACCT*   REIN*   LIST\n"
+          "214-NLST*   STAT*   SITE*   MLSD*   MLST*\n"
+          "214 Direct comments to arodr967@fiu.edu")
 
 # Calls main function.
 main()
