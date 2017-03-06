@@ -11,11 +11,44 @@ import os
 
 thread_list = []
 RECV_BUFFER = 1024
-current_directory = os.path.abspath(".")
-base_directory = os.path.abspath("/")
+
+config_path = os.path.abspath("server/conf")
+print(config_path)
+
+with open(config_path + "/sys.cfg", "r") as config_file:
+    data = config_file.read().split("\n")
+
+FTP_ROOT = data[0].split(" ")[1]
+USER_DATA_PATH = data[1].split(" ")[1]
+USER_DATA_FILE = data[2].split(" ")[1]
+FTP_MODE = data[3].split(" ")[1]
+DATA_PORT_FTP_SERVER = data[6].split(" ")[1]
+FTP_LOG_PATH = data[9].split(" ")[1]
+FTP_LOG_FILE = data[10].split(" ")[1]
+SERVICE_PORT = data[11].split(" ")[1]
+
+print(data)
+print("FTP_ROOT " + FTP_ROOT)
+print("USER_DATA_FILE " + USER_DATA_FILE)
+print("FTP_MODE " + FTP_MODE)
+print("DATA_PORT_FTP_SERVER " + DATA_PORT_FTP_SERVER)
+print("FTP_LOG_FILE " + FTP_LOG_FILE)
+print("SERVICE_PORT " + SERVICE_PORT)
+
+config_file.close()
+
+# Current & base directory is set when the user logs in
+base_directory = ""
+current_directory = ""
 rename_from_path = ""
 rename_from_file = ""
-type = "A"
+set_type = "A"
+current_user = ""
+user_type = ""
+USER_TYPE_ADMIN = "ADMIN"
+USER_TYPE_USER = "USER"
+USER_TYPE_NOTALLOWED = "NOTALLOWED"
+USER_TYPE_LOCKED = "LOCKED"
 
 # Commands
 
@@ -44,7 +77,7 @@ def server_thread(connection_socket, address):
 
     global current_directory
     global base_directory
-    global type
+    global set_type
 
     try:
         print("Thread Server Entering Now...")
@@ -56,7 +89,8 @@ def server_thread(connection_socket, address):
 
             print("Current Directory: " + current_directory)
             print("Base Directory: " + base_directory)
-            print("Type: " + type)
+            print("Current user: " + current_user)
+            print("Type: " + set_type)
             print("TID = ", threading.current_thread())
 
             cmd = str_msg_decode(connection_socket.recv(RECV_BUFFER))
@@ -106,7 +140,6 @@ def server_thread(connection_socket, address):
                 print(local_thread)
                 connection_socket.send(str_msg_encode(local_thread))
     except OSError as e:
-        # A socket error
         print("Socket error:", e)
 
 
@@ -117,13 +150,68 @@ def quit_ftp(connection_socket, local_thread):
 
 
 def user_ftp(connection_socket, local_thread, cmd):
-    local_thread = "331 Password required for " + cmd[4:-1] + "\r\n"
+    global current_user
+
+    current_user = cmd[5:-1]
+    local_thread = "331 Password required for " + current_user + "\r\n"
     connection_socket.send(str_msg_encode(local_thread))
 
 
 def pass_ftp(connection_socket, local_thread, cmd):
-    # TODO: if user is part of the user
-    local_thread = "230 Anonymous access granted, restrictions apply\r\n"
+    global current_directory
+    global base_directory
+    global USER_DATA_PATH
+    global USER_DATA_FILE
+    global user_type
+    global current_user
+
+    user_data_path = os.path.abspath(USER_DATA_PATH)
+
+    with open(user_data_path + USER_DATA_FILE, "r") as user_data_file:
+        user_data = user_data_file.read().split("\n")
+
+    for user in user_data:
+        if current_user == user.split(" ")[0]:
+            print("Found user " + current_user)
+            if cmd[5:-1] == user.split(" ")[1]:
+                user_type = user.split(" ")[2].upper()
+                if user_type == USER_TYPE_ADMIN:
+                    print("Admin type")
+                    base_directory = os.path.abspath(FTP_ROOT)
+                    current_directory = os.path.abspath(FTP_ROOT + "/" + current_user)
+                    local_thread = "230 Admin access granted\r\n"
+                    break
+                elif user_type == USER_TYPE_USER:
+                    print("User type")
+                    base_directory = os.path.abspath(FTP_ROOT + "/" + current_user)
+                    current_directory = os.path.abspath(FTP_ROOT + "/" + current_user)
+                    local_thread = "230 User access granted, restrictions apply\r\n"
+                    break
+                elif user_type == USER_TYPE_NOTALLOWED:
+                    print("You're not allowed here.")
+                    current_user = ""
+                    local_thread = "530 " + current_user + " is not allowed.\r\n"
+                    break
+                elif user_type == USER_TYPE_LOCKED:
+                    print("You're locked, try again later.")
+                    current_user = ""
+                    local_thread = "530 " + current_user + " is locked out.\r\n"
+                    break
+                else:
+                    print("Setting unknown type to " + USER_TYPE_NOTALLOWED)
+                    user_type = USER_TYPE_NOTALLOWED
+                    current_user = ""
+                    local_thread = "530 " + current_user + " is not allowed.\r\n"
+                    break
+            else:
+                current_user = ""
+                local_thread = "530 Login incorrect.\r\n"
+                break
+        else:
+            current_user = ""
+            local_thread = "530 Login incorrect.\r\n"
+            break
+
     connection_socket.send(str_msg_encode(local_thread))
 
 
@@ -186,10 +274,10 @@ def appe_ftp(connection_socket, local_thread, cmd):
 
 
 def type_ftp(connection_socket, local_thread, cmd):
-    global type
+    global set_type
 
-    type = cmd[5]
-    local_thread = "200 Type set to " + type + "\r\n"
+    set_type = cmd[5]
+    local_thread = "200 Type set to " + set_type + "\r\n"
     connection_socket.send(str_msg_encode(local_thread))
 
 
@@ -221,6 +309,7 @@ def rnto_ftp(connection_socket, local_thread, cmd):
     connection_socket.send(str_msg_encode(local_thread))
 
 
+# DELEt file (DELE)
 def dele_ftp(connection_socket, local_thread, cmd):
     global current_directory
 
@@ -280,13 +369,19 @@ def mkd_ftp(connection_socket, local_thread, cmd):
 def pwd_ftp(connection_socket, local_thread):
     global current_directory
     global base_directory
+    global current_user
+    global user_type
 
-    directory = os.path.relpath(current_directory, base_directory)
+    if current_user == "" or user_type == USER_TYPE_NOTALLOWED or user_type == USER_TYPE_LOCKED:
+        local_thread = "530 Please login with USER and PASS\r\n"
+    else:
+        directory = os.path.relpath(current_directory, base_directory)
 
-    if directory == ".":
-        directory = ""
+        if directory == ".":
+            directory = ""
 
-    local_thread = "257 /" + directory + " is the current directory\r\n"
+        local_thread = "257 /" + directory + " is the current directory\r\n"
+
     connection_socket.send(str_msg_encode(local_thread))
 
 
@@ -340,10 +435,9 @@ def main():
     try:
         global thread_list
 
-        server_port = 2129
         server_socket = socket(AF_INET, SOCK_STREAM)
         server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        server_socket.bind(('', server_port))
+        server_socket.bind(('', int(DATA_PORT_FTP_SERVER)))
         server_socket.listen(15)
         print('The server is ready to receive...')
 
