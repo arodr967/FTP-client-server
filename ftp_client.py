@@ -133,7 +133,7 @@ password = args.w
 sunique = False
 current_directory = os.path.abspath(".")
 base_directory = os.path.abspath("/")
-type = "A"
+set_type = "A"
 config_file = args.config
 log_file = args.log
 log_all = args.ALL
@@ -810,23 +810,20 @@ def user_ftp(username, password, tokens, ftp_socket, hostname):
     elif len(tokens) is 2:
         username = tokens[1]
         password = ""
-    elif len(tokens) is 3:
+    else:
         username = tokens[1]
         password = tokens[2]
-    else:
-        print("Third argument is not supported.")
-        return
 
     ftp_socket.send(str_msg_encode("USER " + username + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
-    print(str_msg_decode(msg, True))
+    sys.stdout.write(str_msg_decode(msg, True))
 
     if password is "":
         password = input("Password: ")
 
     ftp_socket.send(str_msg_encode("PASS " + password + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
-    print(str_msg_decode(msg, True))
+    sys.stdout.write(str_msg_decode(msg, True))
 
     str_value = str_msg_decode(msg, False)
     tokens = str_value.split()
