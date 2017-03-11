@@ -1,38 +1,31 @@
-# FTP Client and FTP Server
-#### Alicia Fernanda Rodriguez Taboada - 5162522
+# FTP Client & Server
 
-## 1. Introduction
-Describe the problem that you are trying to solve and additional
-study you needed to do. For example, the requirements may be that you needed to
-read another book or a web site. Provide an insight on the final product of the lab
-in this section as well.
 
-## 2. Problem Statement
-Describe what is the problem you needed to solve
+## How to run it
 
-## 3. Methodology
-Described how you solved the problem. This must include
-important information such as socket information and so forth. This may also
-include the configuration and anything else you created.
+> Make sure you have Python 3 installed on your machine
 
-## 4. Results
-Provide some sample output and provide discussion if needed.
+1. Open 2 separate terminal windows
+2. On one of them, type the following to run the server
 
-## 5. Analysis
-Describe your learning experience, problems you encountered, and
-anything else that may be useful.
+```commandline
+python3 ftp_server.py
+```
 
-## 6. References
-Provide references including sites, repos, books, and any other
-information you have used for this lab and this report. Use correct citation when
-doing it.
+3. On the other terminal window, type the following to run the client
+```commandline
+python3 ftp_client.py
+```
 
-## Additional Notes:
-o Please be sure to have a well formatter report. Always use “Justify Text”
-when writing and also create the headings with numbering of them, such
-as 1. Introduction. You may need to create sub-sections at times.
-o Be clear and concise. Don’t add code that you didn’t write unless
-extremely important and don’t add your entire code.
-• You must hand this report physically in class and uploaded as PDF with your
-code. Word documents, text files, or other formats will be ignored.
-• This report is equally important as your code. 
+4. Login using the following credentials:
+
+```
+Username: user1
+Password: pass1
+```
+
+> There are currently 5 users in the system. You can see the other users in the `users.cfg` file in the `/ftpserver/conf` folder.
+
+5. Type `?` or `help` to display the list of commands that you can perform on the system.
+6. Have fun and be gentle!
+
