@@ -29,7 +29,7 @@ Username: user1
 Password: pass1
 ```
 
-> There are currently 5 users in the system. You can see the other users in the `users.cfg` file in the `/ftpserver/conf` folder.
+> There are currently 5 users in the system. You can see the other users in the [`users.cfg`](#the-user-config) file in the `/ftpserver/conf` folder.
 
 Type `?` or `help` to display the list of commands that you can perform on the system.
 
