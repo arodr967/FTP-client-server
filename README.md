@@ -8,12 +8,12 @@
 1. Open 2 separate terminal windows
 2. On one of them, type the following to run the server
 
-```commandline
+```
 python3 ftp_server.py
 ```
 
 3. On the other terminal window, type the following to run the client
-```commandline
+```
 python3 ftp_client.py
 ```
 
