@@ -15,7 +15,7 @@ import random
 thread_list = []
 RECV_BUFFER = 1024
 
-config_path = os.path.abspath("server/conf")
+config_path = os.path.abspath("ftpserver/conf")
 print(config_path)
 
 with open(config_path + "/sys.cfg", "r") as config_file:
@@ -108,7 +108,7 @@ def server_thread(connection_socket, address):
             elif cmd[0:4] == CMD_STOR:
                 stor_ftp(connection_socket, local_thread, cmd)
             elif cmd[0:4] == CMD_STOU:
-                stou_ftp(connection_socket, local_thread, cmd)
+                stou_ftp(connection_socket, local_thread)
             elif cmd[0:4] == CMD_APPE:
                 appe_ftp(connection_socket, local_thread, cmd)
             elif cmd[0:4] == CMD_TYPE:
@@ -335,7 +335,7 @@ def stor_ftp(connection_socket, local_thread, cmd):
 
 
 # STOre Unique (STOU)
-def stou_ftp(connection_socket, local_thread, cmd):
+def stou_ftp(connection_socket, local_thread):
 
     file = "ftp"
     counter = 6
@@ -393,6 +393,7 @@ def appe_ftp(connection_socket, local_thread, cmd):
     connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
+# TYPE (TYPE)
 def type_ftp(connection_socket, local_thread, cmd):
     local_thread.set_type = cmd[5]
     local_thread.response = "200 Type set to " + local_thread.set_type
@@ -610,7 +611,7 @@ def main():
         server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         server_socket.bind(('', DATA_PORT_FTP_SERVER))
         server_socket.listen(15)
-        print('The server is ready to receive...')
+        print('The ftpserver is ready to receive...')
 
         while True:
             connection_socket, address = server_socket.accept()
