@@ -271,10 +271,10 @@ def run_commands(tokens, logged_on, ftp_socket):
     if cmd == CMD_APPEND:
         data_socket = ftp_new_dataport(ftp_socket)
         if data_socket is not None:
-            get_ftp(tokens, ftp_socket, data_socket)
+            append_ftp(tokens, ftp_socket, data_socket)
             return "", logged_on, ftp_socket
         else:
-            return "[GET] Failed to get data port. Try again.", logged_on, ftp_socket
+            return "[APPEND] Failed to get data port. Try again.", logged_on, ftp_socket
 
     if cmd == CMD_LS or cmd == CMD_DIR:
         data_socket = ftp_new_dataport(ftp_socket)
@@ -684,7 +684,60 @@ def put_ftp(tokens, ftp_socket, data_socket):
     if not sunique:
         ftp_socket.send(str_msg_encode("STOR " + remote_file + "\n"))
     else:
-        ftp_socket.send(str_msg_encode("STOU " + remote_file + "\n"))
+        ftp_socket.send(str_msg_encode("STOU\n"))
+
+    msg = ftp_socket.recv(RECV_BUFFER)
+    tokens = str_msg_decode(msg).split()
+
+    if tokens[0] != "150":
+        sys.stdout.write(str_msg_decode(msg, True))
+        return
+
+    sys.stdout.write(str_msg_decode(msg, True))
+
+    data_connection, data_host = data_socket.accept()
+
+    file = open(local_file, get_file_mode("r"))
+    size_sent = 0
+
+    while True:
+        data = file.read(RECV_BUFFER)
+
+        if isinstance(data, str):
+            data = str_msg_encode(data)
+
+        if len(data) < RECV_BUFFER:
+            data_connection.send(data)
+            size_sent += len(data)
+            file.close()
+            break
+        data_connection.send(data)
+        size_sent += len(data)
+
+    data_connection.close()
+
+    msg = ftp_socket.recv(RECV_BUFFER)
+    sys.stdout.write(str_msg_decode(msg, True))
+
+
+def append_ftp(tokens, ftp_socket, data_socket):
+
+    if len(tokens) is 1:
+        local_file = input("(local-file) ")
+        remote_file = input("(remote-file) ")
+    elif len(tokens) is 2:
+        local_file = tokens[1]
+        remote_file = local_file
+    else:
+        local_file = tokens[1]
+        remote_file = tokens[2]
+
+    if os.path.isfile(local_file) is False:
+        print("local: " + local_file + " remote: " + remote_file)
+        print("local: " + local_file + ": No such file or directory")
+        return
+
+    ftp_socket.send(str_msg_encode("APPE " + remote_file + "\n"))
 
     msg = ftp_socket.recv(RECV_BUFFER)
     tokens = str_msg_decode(msg).split()
@@ -827,8 +880,6 @@ def quit_ftp(logged_on, ftp_socket):
 def relogin(username, password, logged_on, tokens, hostname, ftp_socket):
 
     if len(tokens) < 3:
-        # print("LOGIN requires 2 arguments. LOGIN [username] [password]")
-        # print("You will be prompted for username and password now")
         username = input("Username: ")
         password = input("Password: ")
     else:
