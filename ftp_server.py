@@ -6,7 +6,8 @@ import traceback
 import errno
 import os
 import subprocess
-# import imghdr
+import string
+import random
 
 
 # Global Variables & Constants
@@ -335,11 +336,61 @@ def stor_ftp(connection_socket, local_thread, cmd):
 
 # STOre Unique (STOU)
 def stou_ftp(connection_socket, local_thread, cmd):
-    connection_socket.send(str_msg_encode(local_thread))
+
+    file = "ftp"
+    counter = 6
+    while counter > 0:
+        file += random.choice(string.ascii_letters + string.digits)
+        counter -= 1
+
+    path = os.path.join(local_thread.current_directory, file)
+
+    local_thread.response = "150 FILE: " + file
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+
+    open_file = open(path, get_file_mode(local_thread, "w"))
+
+    while True:
+        file_data = local_thread.data_socket.recv(RECV_BUFFER)
+
+        if local_thread.set_type == "A":
+            file_data = str_msg_decode(file_data)
+
+        if len(file_data) < RECV_BUFFER:
+            open_file.write(file_data)
+            open_file.close()
+            break
+        open_file.write(file_data)
+
+    local_thread.response = "226 Transfer complete"
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
+# APPEnd (APPE)
 def appe_ftp(connection_socket, local_thread, cmd):
-    connection_socket.send(str_msg_encode(local_thread))
+
+    file = cmd.split()[1]
+    path = os.path.join(local_thread.current_directory, file)
+
+    local_thread.response = "150 Opening " + get_type(local_thread.set_type) + " mode data connection for " + file
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+
+    open_file = open(path, get_file_mode(local_thread, "a"))
+
+    while True:
+        file_data = local_thread.data_socket.recv(RECV_BUFFER)
+
+        if local_thread.set_type == "A":
+            file_data = str_msg_decode(file_data)
+
+        if len(file_data) < RECV_BUFFER:
+            open_file.write(file_data)
+            open_file.close()
+            break
+        open_file.write(file_data)
+
+    local_thread.response = "226 Transfer complete"
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 def type_ftp(connection_socket, local_thread, cmd):
