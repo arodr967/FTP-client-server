@@ -5,6 +5,7 @@ import errno
 import traceback
 import sys
 import argparse
+import imghdr
 
 # Global constants
 
@@ -370,9 +371,9 @@ def ftp_new_dataport(ftp_socket):
 
     try:
         ftp_socket.send(str_msg_encode(cmd_port_send))
-    # except socket.timeout:
-    #     print("Socket timeout. Port may have been used recently. wait and try again!")
-    #     return None
+    except socket.timeout:
+        print("Socket timeout. Port may have been used recently. wait and try again!")
+        return None
     except OSError as e:
         print("Socket error. Try again")
         return None
@@ -492,12 +493,18 @@ def rmdir_ftp(tokens, ftp_socket):
 
 def ascii_ftp(ftp_socket):
 
+    global set_type
+    set_type = "A"
+
     ftp_socket.send(str_msg_encode("TYPE A\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     sys.stdout.write(str_msg_decode(msg, True))
 
 
 def image_ftp(ftp_socket):
+
+    global set_type
+    set_type = "I"
 
     ftp_socket.send(str_msg_encode("TYPE I\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -592,6 +599,7 @@ def rename_ftp(tokens, ftp_socket):
 
 
 def get_ftp(tokens, ftp_socket, data_socket):
+    global set_type
 
     if len(tokens) is 1:
         remote_file = input("(remote-file) ")
@@ -614,6 +622,8 @@ def get_ftp(tokens, ftp_socket, data_socket):
         sys.stdout.write(str_msg_decode(msg, True))
         return
 
+    sys.stdout.write(str_msg_decode(msg, True))
+
     data_connection, data_host = data_socket.accept()
 
     file = open(local_file, get_file_mode("w"))
@@ -621,9 +631,20 @@ def get_ftp(tokens, ftp_socket, data_socket):
 
     while True:
         data = data_connection.recv(RECV_BUFFER)
+
+        if set_type == "A":
+            try:
+                data = data.decode()
+            except UnicodeDecodeError:
+                print("550 " + remote_file + ": Is an image.\nSet file transfer mode to IMAGE")
+                file.close()
+                data_connection.close()
+                break
+
         if len(data) < RECV_BUFFER:
             file.write(data)
             size_recv += len(data)
+            file.close()
             break
         file.write(data)
 
@@ -666,21 +687,32 @@ def put_ftp(tokens, ftp_socket, data_socket):
         ftp_socket.send(str_msg_encode("STOU " + remote_file + "\n"))
 
     msg = ftp_socket.recv(RECV_BUFFER)
+    tokens = str_msg_decode(msg).split()
+
+    if tokens[0] != "150":
+        sys.stdout.write(str_msg_decode(msg, True))
+        return
+
     sys.stdout.write(str_msg_decode(msg, True))
 
     data_connection, data_host = data_socket.accept()
-    file_bin = open(remote_file, "rb")  # read and binary modes
 
+    file = open(local_file, get_file_mode("r"))
     size_sent = 0
-    while True:
 
-        data = file_bin.read(RECV_BUFFER)
-        if not data or data == '' or len(data) <= 0:
-            file_bin.close()
-            break
-        else:
+    while True:
+        data = file.read(RECV_BUFFER)
+
+        if isinstance(data, str):
+            data = str_msg_encode(data)
+
+        if len(data) < RECV_BUFFER:
             data_connection.send(data)
             size_sent += len(data)
+            file.close()
+            break
+        data_connection.send(data)
+        size_sent += len(data)
 
     data_connection.close()
 
@@ -696,6 +728,12 @@ def ls_ftp(tokens, ftp_socket, data_socket):
         ftp_socket.send(str_msg_encode("LIST\n"))
 
     msg = ftp_socket.recv(RECV_BUFFER)
+    tokens = str_msg_decode(msg).split()
+
+    if tokens[0] != "150":
+        sys.stdout.write(str_msg_decode(msg, True))
+        return
+
     sys.stdout.write(str_msg_decode(msg, True))
 
     data_connection, data_host = data_socket.accept()
@@ -708,11 +746,13 @@ def ls_ftp(tokens, ftp_socket, data_socket):
         sys.stdout.write(str_msg_decode(msg, True))
 
     data_connection.close()
-    if str_msg_decode(msg).split()[0] == "450":
+
+    msg = ftp_socket.recv(RECV_BUFFER)
+
+    if str_msg_decode(msg).split()[0] != "226":
         return
-    else:
-        msg = ftp_socket.recv(RECV_BUFFER)
-        sys.stdout.write(str_msg_decode(msg, True))
+
+    sys.stdout.write(str_msg_decode(msg, True))
 
 
 def delete_ftp(tokens, ftp_socket):
@@ -844,6 +884,7 @@ def user_ftp(username, password, tokens, ftp_socket, hostname):
 def login(username, password, ftp_socket):
 
     global hostname
+    global set_type
 
     if username is None or username.strip() is "":
         username = input("Name (" + hostname + "): ")
@@ -866,7 +907,19 @@ def login(username, password, ftp_socket):
         print("Login failed.")
         return False
     else:
+        ftp_socket.send(str_msg_encode("TYPE " + set_type + "\n"))
+        ftp_socket.recv(RECV_BUFFER)
+        print("Using " + get_type(set_type).lower() + " mode to transfer files.")
         return True
+
+
+def get_type(type):
+    if type == "A":
+        return "ASCII"
+    elif type == "I":
+        return "BINARY"
+    else:
+        return ""
 
 
 def help_ftp():
