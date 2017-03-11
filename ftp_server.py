@@ -5,6 +5,7 @@ import sys
 import traceback
 import errno
 import os
+import subprocess
 
 
 # Global Variables & Constants
@@ -22,29 +23,13 @@ FTP_ROOT = data[0].split(" ")[1]
 USER_DATA_PATH = data[1].split(" ")[1]
 USER_DATA_FILE = data[2].split(" ")[1]
 FTP_MODE = data[3].split(" ")[1]
-DATA_PORT_FTP_SERVER = data[6].split(" ")[1]
+DATA_PORT_FTP_SERVER = int(data[6].split(" ")[1])
 FTP_LOG_PATH = data[9].split(" ")[1]
 FTP_LOG_FILE = data[10].split(" ")[1]
-SERVICE_PORT = data[11].split(" ")[1]
-
-print(data)
-print("FTP_ROOT " + FTP_ROOT)
-print("USER_DATA_FILE " + USER_DATA_FILE)
-print("FTP_MODE " + FTP_MODE)
-print("DATA_PORT_FTP_SERVER " + DATA_PORT_FTP_SERVER)
-print("FTP_LOG_FILE " + FTP_LOG_FILE)
-print("SERVICE_PORT " + SERVICE_PORT)
+SERVICE_PORT = int(data[11].split(" ")[1])
 
 config_file.close()
 
-# Current & base directory is set when the user logs in
-base_directory = ""
-current_directory = ""
-rename_from_path = ""
-rename_from_file = ""
-set_type = "A"
-current_user = ""
-user_type = ""
 USER_TYPE_ADMIN = "ADMIN"
 USER_TYPE_USER = "USER"
 USER_TYPE_NOTALLOWED = "NOTALLOWED"
@@ -75,23 +60,32 @@ CMD_QUIT = "QUIT"
 
 def server_thread(connection_socket, address):
 
-    global current_directory
-    global base_directory
-    global set_type
-
     try:
         print("Thread Server Entering Now...")
         print(address)
+
         local_thread = threading.local()
-        connection_socket.send(str_msg_encode("220 FTP Server v1.0\r\n"))
+        local_thread.response = response_msg("220 FTP Server v1.0")
+        local_thread.current_directory = ""
+        local_thread.base_directory = ""
+        local_thread.rename_from_path = ""
+        local_thread.rename_from_file = ""
+        local_thread.set_type = "I"
+        local_thread.current_user = ""
+        local_thread.user_type = ""
+        local_thread.logged_on = False
+        local_thread.data_socket = None
+
+        connection_socket.send(str_msg_encode(local_thread.response))
 
         while True:
 
-            print("Current Directory: " + current_directory)
-            print("Base Directory: " + base_directory)
-            print("Current user: " + current_user)
-            print("Type: " + set_type)
             print("TID = ", threading.current_thread())
+            print("Current Directory: " + local_thread.current_directory)
+            print("Base Directory: " + local_thread.base_directory)
+            print("Current user: " + local_thread.current_user)
+            print("Type: " + local_thread.set_type)
+            print("Logged on? " + str(local_thread.logged_on))
 
             cmd = str_msg_decode(connection_socket.recv(RECV_BUFFER))
 
@@ -137,33 +131,27 @@ def server_thread(connection_socket, address):
                 port_ftp(connection_socket, local_thread, cmd)
             else:
                 local_thread = ("You said what? " + cmd)
-                print(local_thread)
-                connection_socket.send(str_msg_encode(local_thread))
+                print(local_thread.response)
+                connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
     except OSError as e:
         print("Socket error:", e)
 
 
 def quit_ftp(connection_socket, local_thread):
-    local_thread = "221 Goodbye.\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+    local_thread.response = response_msg("221 Goodbye.")
+    connection_socket.send(str_msg_encode(local_thread.response))
     connection_socket.close()
 
 
 def user_ftp(connection_socket, local_thread, cmd):
-    global current_user
-
-    current_user = cmd[5:-1]
-    local_thread = "331 Password required for " + current_user + "\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+    local_thread.current_user = cmd[5:-1]
+    local_thread.response = response_msg("331 Password required for " + local_thread.current_user)
+    connection_socket.send(str_msg_encode(local_thread.response))
 
 
 def pass_ftp(connection_socket, local_thread, cmd):
-    global current_directory
-    global base_directory
     global USER_DATA_PATH
     global USER_DATA_FILE
-    global user_type
-    global current_user
 
     user_data_path = os.path.abspath(USER_DATA_PATH)
 
@@ -171,94 +159,142 @@ def pass_ftp(connection_socket, local_thread, cmd):
         user_data = user_data_file.read().split("\n")
 
     for user in user_data:
-        if current_user == user.split(" ")[0]:
-            print("Found user " + current_user)
+        if local_thread.current_user == user.split(" ")[0]:
+            print("Found user " + local_thread.current_user)
+
             if cmd[5:-1] == user.split(" ")[1]:
-                user_type = user.split(" ")[2].upper()
-                if user_type == USER_TYPE_ADMIN:
+                local_thread.user_type = user.split(" ")[2].upper()
+
+                if local_thread.user_type == USER_TYPE_ADMIN:
                     print("Admin type")
-                    base_directory = os.path.abspath(FTP_ROOT)
-                    current_directory = os.path.abspath(FTP_ROOT + "/" + current_user)
-                    local_thread = "230 Admin access granted\r\n"
+                    local_thread.base_directory = os.path.abspath(FTP_ROOT)
+                    local_thread.current_directory = os.path.abspath(FTP_ROOT + "/" + local_thread.current_user)
+                    local_thread.logged_on = True
+                    local_thread.response = "230 Admin access granted"
                     break
-                elif user_type == USER_TYPE_USER:
+
+                elif local_thread.user_type == USER_TYPE_USER:
                     print("User type")
-                    base_directory = os.path.abspath(FTP_ROOT + "/" + current_user)
-                    current_directory = os.path.abspath(FTP_ROOT + "/" + current_user)
-                    local_thread = "230 User access granted, restrictions apply\r\n"
+                    local_thread.base_directory = os.path.abspath(FTP_ROOT + "/" + local_thread.current_user)
+                    local_thread.current_directory = os.path.abspath(FTP_ROOT + "/" + local_thread.current_user)
+                    local_thread.logged_on = True
+                    local_thread.response = "230 User access granted, restrictions apply"
                     break
-                elif user_type == USER_TYPE_NOTALLOWED:
+
+                elif local_thread.user_type == USER_TYPE_NOTALLOWED:
                     print("You're not allowed here.")
-                    current_user = ""
-                    local_thread = "530 " + current_user + " is not allowed.\r\n"
+                    local_thread.logged_on = False
+                    local_thread.response = "530 " + local_thread.current_user + " is not allowed."
                     break
-                elif user_type == USER_TYPE_LOCKED:
+
+                elif local_thread.user_type == USER_TYPE_LOCKED:
                     print("You're locked, try again later.")
-                    current_user = ""
-                    local_thread = "530 " + current_user + " is locked out.\r\n"
+                    local_thread.logged_on = False
+                    local_thread.response = "530 " + local_thread.current_user + " is locked out."
                     break
+
                 else:
                     print("Setting unknown type to " + USER_TYPE_NOTALLOWED)
-                    user_type = USER_TYPE_NOTALLOWED
-                    current_user = ""
-                    local_thread = "530 " + current_user + " is not allowed.\r\n"
+                    local_thread.user_type = USER_TYPE_NOTALLOWED
+                    local_thread.logged_on = False
+                    local_thread.response = "530 " + local_thread.current_user + " is not allowed."
                     break
-            else:
-                current_user = ""
-                local_thread = "530 Login incorrect.\r\n"
-                break
-        else:
-            current_user = ""
-            local_thread = "530 Login incorrect.\r\n"
-            break
 
-    connection_socket.send(str_msg_encode(local_thread))
+            else:
+                print("Wrong password for user " + local_thread.current_user)
+                local_thread.logged_on = False
+                local_thread.response = "530 Login incorrect."
+                break
+
+        else:
+            print("Did not find user " + local_thread.current_user)
+            local_thread.logged_on = False
+            local_thread.response = "530 Login incorrect."
+
+    user_data_file.close()
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # Change Working Directory (CWD)
 def cwd_ftp(connection_socket, local_thread, cmd):
-    global current_directory
-    global base_directory
 
-    directory = cmd[4:-1]
+    if local_thread.logged_on:
+        directory = cmd[4:-1]
 
-    if directory == "/":
-        current_directory = base_directory
-        local_thread = "250 CWD command successful\r\n"
-    elif directory[0] == '/':
-        path = os.path.join(base_directory, directory[1:])
+        if directory == "/":
+            local_thread.current_directory = local_thread.base_directory
+            local_thread.response = "250 CWD command successful"
+        elif directory[0] == '/':
+            path = os.path.join(local_thread.base_directory, directory[1:])
 
-        if os.path.exists(path):
-            current_directory = path
-            local_thread = "250 CWD command successful\r\n"
+            if os.path.exists(path):
+                local_thread.current_directory = path
+                local_thread.response = "250 CWD command successful"
+            else:
+                local_thread.response = "550 " + directory[1:] + ": No such file or directory"
         else:
-            local_thread = "550 " + directory[1:] + ": No such file or directory\r\n"
+            path = os.path.join(local_thread.current_directory, directory)
+
+            if os.path.exists(path):
+                local_thread.current_directory = path
+                local_thread.response = "250 CWD command successful"
+            else:
+                local_thread.response = "550 " + directory + ": No such file or directory"
+
     else:
-        path = os.path.join(current_directory, directory)
+        local_thread.response = "530 Please login with USER and PASS"
 
-        if os.path.exists(path):
-            current_directory = path
-            local_thread = "250 CWD command successful\r\n"
-        else:
-            local_thread = "550 " + directory + ": No such file or directory\r\n"
-
-    connection_socket.send(str_msg_encode(local_thread))
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # Go back 1 directory
 def cdup_ftp(connection_socket, local_thread):
-    global current_directory
-    global base_directory
 
-    if not os.path.samefile(current_directory, base_directory):
-        current_directory = os.path.abspath(os.path.join(current_directory, ".."))
+    if local_thread.logged_on:
+        if not os.path.samefile(local_thread.current_directory, local_thread.base_directory):
+            local_thread.current_directory = os.path.abspath(os.path.join(local_thread.current_directory, ".."))
 
-    local_thread = "250 CDUP command successful\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+        local_thread.response = "250 CDUP command successful"
+    else:
+        local_thread.response = "530 Please login with USER and PASS"
+
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
+# RETRieve (RETF)
 def retr_ftp(connection_socket, local_thread, cmd):
-    connection_socket.send(str_msg_encode(local_thread))
+
+    file = cmd.split()[1]
+    path = os.path.join(local_thread.current_directory, file)
+
+    if os.path.isdir(path):
+        local_thread.response = "550 " + file + ": Not a regular file"
+        connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+    elif os.path.exists(path):
+        local_thread.response = "150 Opening " + get_type(local_thread.set_type) + " mode data connection for file list"
+        connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+        reading_data = open(path, get_file_mode(local_thread, "r"))
+
+        file_data = reading_data.read()
+
+        if isinstance(file_data, str):
+            file_data = bytearray(file_data, "utf8")
+
+        local_thread.data_socket.send(file_data)
+        reading_data.close()
+
+        local_thread.response = "226 Transfer complete"
+        connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+    else:
+        local_thread.response = "550 " + file + ": No such file or directory"
+        connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+
+
+def get_file_mode(local_thread, mode):
+    if local_thread.set_type == "A":
+        return mode
+    else:
+        return mode + "b"
 
 
 def stor_ftp(connection_socket, local_thread, cmd):
@@ -274,141 +310,167 @@ def appe_ftp(connection_socket, local_thread, cmd):
 
 
 def type_ftp(connection_socket, local_thread, cmd):
-    global set_type
-
-    set_type = cmd[5]
-    local_thread = "200 Type set to " + set_type + "\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+    local_thread.set_type = cmd[5]
+    local_thread.response = "200 Type set to " + local_thread.set_type
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # ReName FRom (RNFR)
 def rnfr_ftp(connection_socket, local_thread, cmd):
-    global current_directory
-    global rename_from_path
-    global rename_from_file
 
-    rename_from_file = cmd[5:-1]
-    rename_from_path = os.path.join(current_directory, cmd[5:-1])
-    local_thread = "350 File or directory exists, ready for destination name\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+    local_thread.rename_from_file = cmd[5:-1]
+    local_thread.rename_from_path = os.path.join(local_thread.current_directory, cmd[5:-1])
+
+    if local_thread.logged_on:
+        if os.path.exists(local_thread.rename_from_path):
+            local_thread.response = "350 File or directory exists, ready for destination name"
+        else:
+            local_thread.response = "550 " + local_thread.rename_from_file + ": No such file or directory"
+    else:
+        local_thread.response = "530 Please login with USER and PASS"
+
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # ReName TO (RNTO)
 def rnto_ftp(connection_socket, local_thread, cmd):
-    global current_directory
-    global rename_from_path
-    global rename_from_file
 
-    if os.path.exists(rename_from_path):
-        rename_to = os.path.join(current_directory, cmd[5:-1])
-        os.rename(rename_from_path, rename_to)
-        local_thread = "250 Rename successful\r\n"
+    if local_thread.logged_on:
+        if os.path.exists(local_thread.rename_from_path):
+            rename_to = os.path.join(local_thread.current_directory, cmd[5:-1])
+            os.rename(local_thread.rename_from_path, rename_to)
+            local_thread.response = "250 Rename successful"
     else:
-        local_thread = "550 " + rename_from_file + ": No such file or directory\r\n"
+        local_thread.response = "530 Please login with USER and PASS"
 
-    connection_socket.send(str_msg_encode(local_thread))
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # DELEt file (DELE)
 def dele_ftp(connection_socket, local_thread, cmd):
-    global current_directory
 
-    file = cmd[5:-1]
-    path = os.path.join(current_directory, file)
+    if local_thread.logged_on:
+        file = cmd[5:-1]
+        path = os.path.join(local_thread.current_directory, file)
 
-    if os.path.isdir(path):
-        local_thread = "550 " + file + ": Is a directory\r\n"
-    elif os.path.exists(path):
-        os.remove(path)
-        local_thread = "250 DELE command successful\r\n"
+        if os.path.isdir(path):
+            local_thread.response = "550 " + file + ": Is a directory"
+        elif os.path.exists(path):
+            os.remove(path)
+            local_thread.response = "250 DELE command successful"
+        else:
+            local_thread.response = "550 " + file + ": No such file or directory"
     else:
-        local_thread = "550 " + file + ": No such file or directory\r\n"
+        local_thread.response = "530 Please login with USER and PASS"
 
-    connection_socket.send(str_msg_encode(local_thread))
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # ReMove Directory (RMD)
 def rmd_ftp(connection_socket, local_thread, cmd):
-    global current_directory
 
-    remove_directory = cmd[4:-1]
-    path = os.path.join(current_directory, remove_directory)
+    if local_thread.logged_on:
+        remove_directory = cmd[4:-1]
+        path = os.path.join(local_thread.current_directory, remove_directory)
 
-    if remove_directory == "":
-        local_thread = "501 Syntax error in parameters or arguments.\r\n"
-    elif os.path.exists(path):
-        os.rmdir(path)
-        local_thread = "250 RMD command successful\r\n"
+        if remove_directory == "":
+            local_thread.response = "501 Syntax error in parameters or arguments."
+        elif os.path.exists(path):
+            if directory_is_empty(path):
+                os.rmdir(path)
+                local_thread.response = "250 RMD command successful"
+            else:
+                local_thread.response = "550 " + remove_directory + ": Directory not empty"
+
+        else:
+            local_thread.response = "550 " + remove_directory + ": No such file or directory"
+
     else:
-        local_thread = "550 " + remove_directory + ": No such file or directory\r\n"
+        local_thread.response = "530 Please login with USER and PASS"
 
-    connection_socket.send(str_msg_encode(local_thread))
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # MaKe Directory (MKD)
 def mkd_ftp(connection_socket, local_thread, cmd):
-    global current_directory
 
-    new_directory = cmd[4:-1]
-    path = os.path.join(current_directory, new_directory);
+    if local_thread.logged_on:
+        new_directory = cmd[4:-1]
+        path = os.path.join(local_thread.current_directory, new_directory)
 
-    if not os.path.isdir(path):
-        os.mkdir(path)
+        if not os.path.isdir(path):
+            os.mkdir(path)
+        else:
+            if directory_is_empty(path):
+                local_thread.response = "257 /" + new_directory + " - Directory successfully created"
+            else:
+                local_thread.response = "550 " + new_directory + ": Directory not empty"
     else:
-        for dirpath, dirnames, files in os.walk("./" + new_directory):
-            if files != [] or dirnames != []:
-                local_thread = "550 " + new_directory + ": Directory not empty\r\n"
-                connection_socket.send(str_msg_encode(local_thread))
-                return
+        local_thread.response = "530 Please login with USER and PASS"
 
-    local_thread = "257 /" + new_directory + " - Directory successfully created\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # Print Working Directory (PWD)
 def pwd_ftp(connection_socket, local_thread):
-    global current_directory
-    global base_directory
-    global current_user
-    global user_type
 
-    if current_user == "" or user_type == USER_TYPE_NOTALLOWED or user_type == USER_TYPE_LOCKED:
-        local_thread = "530 Please login with USER and PASS\r\n"
-    else:
-        directory = os.path.relpath(current_directory, base_directory)
+    if local_thread.logged_on:
+        directory = os.path.relpath(local_thread.current_directory, local_thread.base_directory)
 
         if directory == ".":
             directory = ""
 
-        local_thread = "257 /" + directory + " is the current directory\r\n"
+        local_thread.response = "257 /" + directory + " is the current directory"
+    else:
+        local_thread.response = "530 Please login with USER and PASS"
 
-    connection_socket.send(str_msg_encode(local_thread))
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
+# LIST (LIST)
 def list_ftp(connection_socket, local_thread, cmd):
-    global current_directory
 
-    # TODO: use subprocess.check_output()
+    local_thread.response = "150 Opening ASCII mode data connection for file list"
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
-    local_thread = "150 Opening ASCII mode data connection for file list\r\n"
-    # connection_socket.send(str_msg_encode(local_thread))
+    directory = cmd[5:-1]
+    if directory != "":
+        path = os.path.join(local_thread.current_directory, directory)
+        if os.path.exists(path):
+            directory_list(path, local_thread)
+        else:
+            local_thread.data_socket.send(str_msg_encode(response_msg("450 " + directory + ": No such file or directory")))
+            return
 
-    for items in os.listdir(current_directory):
-        local_thread = local_thread + items + "\r\n"
-        # connection_socket.send(str_msg_encode(local_thread))
-
-    local_thread += "226 Transfer complete\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+    directory_list(local_thread.current_directory, local_thread)
+    local_thread.response = "226 Transfer complete"
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
+# NOOP (NOOP)
 def noop_ftp(connection_socket, local_thread):
-    local_thread = "200 NOOP command successful.\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+    local_thread.response = "200 NOOP command successful"
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
+# PORT (PORT)
 def port_ftp(connection_socket, local_thread, cmd):
-    local_thread = "200 PORT command successful\r\n"
-    connection_socket.send(str_msg_encode(local_thread))
+
+    if local_thread.logged_on:
+        cmd = cmd.split(" ")
+        address = cmd[1].split(",")
+        ip = address[0] + "." + address[1] + "." + address[2] + "." + address[3]
+        port = (int(address[4]) * 256) + int(address[5])
+
+        local_thread.data_socket = socket(AF_INET, SOCK_STREAM)
+        local_thread.data_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        local_thread.data_socket.connect((ip, port))
+
+        local_thread.response = "200 PORT command successful"
+        connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+    else:
+        local_thread.response = "530 Please login with USER and PASS"
+        connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 def join_all_threads():
@@ -431,13 +493,38 @@ def str_msg_decode(msg, print_strip=False):
     return str_value
 
 
+def response_msg(msg):
+    return msg + "\r\n"
+
+
+def directory_is_empty(path):
+    if os.listdir(path) == []:
+        return True
+    else:
+        return False
+
+
+def get_type(type):
+    if type == "A":
+        return "ASCII"
+    elif type == "I":
+        return "BINARY"
+    else:
+        return ""
+
+
+def directory_list(path, local_thread):
+    for item in os.listdir(path):
+        local_thread.data_socket.send(str_msg_encode(response_msg(item)))
+
+
 def main():
     try:
         global thread_list
 
         server_socket = socket(AF_INET, SOCK_STREAM)
         server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        server_socket.bind(('', int(DATA_PORT_FTP_SERVER)))
+        server_socket.bind(('', DATA_PORT_FTP_SERVER))
         server_socket.listen(15)
         print('The server is ready to receive...')
 
