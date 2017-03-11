@@ -6,6 +6,7 @@ import traceback
 import errno
 import os
 import subprocess
+# import imghdr
 
 
 # Global Variables & Constants
@@ -137,18 +138,21 @@ def server_thread(connection_socket, address):
         print("Socket error:", e)
 
 
+# QUIT (QUIT)
 def quit_ftp(connection_socket, local_thread):
     local_thread.response = response_msg("221 Goodbye.")
     connection_socket.send(str_msg_encode(local_thread.response))
     connection_socket.close()
 
 
+# USERname (USER)
 def user_ftp(connection_socket, local_thread, cmd):
     local_thread.current_user = cmd[5:-1]
     local_thread.response = response_msg("331 Password required for " + local_thread.current_user)
     connection_socket.send(str_msg_encode(local_thread.response))
 
 
+# PASSword (PASS)
 def pass_ftp(connection_socket, local_thread, cmd):
     global USER_DATA_PATH
     global USER_DATA_FILE
@@ -261,7 +265,7 @@ def cdup_ftp(connection_socket, local_thread):
     connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
-# RETRieve (RETF)
+# RETRieve (RETR)
 def retr_ftp(connection_socket, local_thread, cmd):
 
     file = cmd.split()[1]
@@ -271,17 +275,22 @@ def retr_ftp(connection_socket, local_thread, cmd):
         local_thread.response = "550 " + file + ": Not a regular file"
         connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
     elif os.path.exists(path):
-        local_thread.response = "150 Opening " + get_type(local_thread.set_type) + " mode data connection for file list"
+        local_thread.response = "150 Opening " + get_type(local_thread.set_type) + " mode data connection for " + file
         connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
-        reading_data = open(path, get_file_mode(local_thread, "r"))
 
-        file_data = reading_data.read()
+        open_file = open(path, get_file_mode(local_thread, "r"))
 
-        if isinstance(file_data, str):
-            file_data = bytearray(file_data, "utf8")
+        while True:
+            file_data = open_file.read(RECV_BUFFER)
 
-        local_thread.data_socket.send(file_data)
-        reading_data.close()
+            if isinstance(file_data, str):
+                file_data = str_msg_encode(file_data)
+
+            if len(file_data) < RECV_BUFFER:
+                local_thread.data_socket.send(file_data)
+                open_file.close()
+                break
+            local_thread.data_socket.send(file_data)
 
         local_thread.response = "226 Transfer complete"
         connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
@@ -297,10 +306,34 @@ def get_file_mode(local_thread, mode):
         return mode + "b"
 
 
+# STORe (STOR)
 def stor_ftp(connection_socket, local_thread, cmd):
-    connection_socket.send(str_msg_encode(local_thread))
+
+    file = cmd.split()[1]
+    path = os.path.join(local_thread.current_directory, file)
+
+    local_thread.response = "150 Opening " + get_type(local_thread.set_type) + " mode data connection for " + file
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+
+    open_file = open(path, get_file_mode(local_thread, "w"))
+
+    while True:
+        file_data = local_thread.data_socket.recv(RECV_BUFFER)
+
+        if local_thread.set_type == "A":
+            file_data = str_msg_decode(file_data)
+
+        if len(file_data) < RECV_BUFFER:
+            open_file.write(file_data)
+            open_file.close()
+            break
+        open_file.write(file_data)
+
+    local_thread.response = "226 Transfer complete"
+    connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
+# STOre Unique (STOU)
 def stou_ftp(connection_socket, local_thread, cmd):
     connection_socket.send(str_msg_encode(local_thread))
 
