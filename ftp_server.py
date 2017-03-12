@@ -34,25 +34,88 @@ USER_TYPE_LOCKED = "LOCKED"
 
 # Commands
 
-CMD_USER = "USER"
-CMD_PASS = "PASS"
-CMD_CWD = "CWD"
-CMD_CDUP = "CDUP"
-CMD_RETR = "RETR"
-CMD_STOR = "STOR"
-CMD_STOU = "STOU"
-CMD_APPE = "APPE"
-CMD_TYPE = "TYPE"
-CMD_RNFR = "RNFR"
-CMD_RNTO = "RNTO"
-CMD_DELE = "DELE"
-CMD_RMD = "RMD"
-CMD_MKD = "MKD"
-CMD_PWD = "PWD"
-CMD_LIST = "LIST"
-CMD_NOOP = "NOOP"
-CMD_PORT = "PORT"
-CMD_QUIT = "QUIT"
+commands = {
+    "CMD_USER": {
+        "cmd": "USER",
+        "syntax": "214 Syntax: USER <sp> username"
+    },
+    "CMD_PASS": {
+        "cmd": "PASS",
+        "syntax": "214 Syntax: PASS <sp> password"
+    },
+    "CMD_CWD": {
+        "cmd": "CWD",
+        "syntax": "214 Syntax: CWD <sp> pathname"
+    },
+    "CMD_CDUP": {
+        "cmd": "CDUP",
+        "syntax": "214 Syntax: CDUP (up one directory)"
+    },
+    "CMD_RETR": {
+        "cmd": "RETR",
+        "syntax": "214 Syntax: RETR <sp> pathname"
+    },
+    "CMD_STOR": {
+        "cmd": "STOR",
+        "syntax": "214 Syntax: STOR <sp> pathname"
+    },
+    "CMD_STOU": {
+        "cmd": "STOU",
+        "syntax": "214 Syntax: STOU (store unique filename)"
+    },
+    "CMD_APPE": {
+        "cmd": "APPE",
+        "syntax": "214 Syntax: APPE <sp> pathname"
+    },
+    "CMD_TYPE": {
+        "cmd": "TYPE",
+        "syntax": "214 Syntax: TYPE <sp> type-code (A, I)"
+    },
+    "CMD_RNFR": {
+        "cmd": "RNFR",
+        "syntax": "214 Syntax: RNFR <sp> pathname"
+    },
+    "CMD_RNTO": {
+        "cmd": "RNTO",
+        "syntax": "214 Syntax: RNTO <sp> pathname"
+    },
+    "CMD_DELE": {
+        "cmd": "DELE",
+        "syntax": "214 Syntax: DELE <sp> pathname"
+    },
+    "CMD_RMD": {
+        "cmd": "RMD",
+        "syntax": "214 Syntax: RMD <sp> pathname"
+    },
+    "CMD_MKD": {
+        "cmd": "MKD",
+        "syntax": "214 Syntax: MKD <sp> pathname"
+    },
+    "CMD_PWD": {
+        "cmd": "PWD",
+        "syntax": "214 Syntax: PWD (returns current working directory)"
+    },
+    "CMD_LIST": {
+        "cmd": "LIST",
+        "syntax": "214 Syntax: LIST [<sp> pathname]"
+    },
+    "CMD_NOOP": {
+        "cmd": "NOOP",
+        "syntax": "214 Syntax: NOOP (no operation)"
+    },
+    "CMD_PORT": {
+        "cmd": "PORT",
+        "syntax": "214 Syntax: PORT <sp> h1,h2,h3,h4,p1,p2"
+    },
+    "CMD_QUIT": {
+        "cmd": "QUIT",
+        "syntax": "214 Syntax: QUIT (close control connection)"
+    },
+    "CMD_HELP": {
+        "cmd": "HELP",
+        "syntax": "214 Syntax: HELP [<sp> command]"
+    }
+}
 
 
 def server_thread(connection_socket, address):
@@ -88,50 +151,86 @@ def server_thread(connection_socket, address):
 
             print("Received command: " + cmd)
 
-            if cmd[0:4] == CMD_QUIT:
+            if cmd[0:4] == commands["CMD_QUIT"]["cmd"]:
                 quit_ftp(connection_socket, local_thread)
-            elif cmd[0:4] == CMD_USER:
+            elif cmd[0:4] == commands["CMD_USER"]["cmd"]:
                 user_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_PASS:
+            elif cmd[0:4] == commands["CMD_PASS"]["cmd"]:
                 pass_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:3] == CMD_CWD:
+            elif cmd[0:3] == commands["CMD_CWD"]["cmd"]:
                 cwd_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_CDUP:
+            elif cmd[0:4] == commands["CMD_CDUP"]["cmd"]:
                 cdup_ftp(connection_socket, local_thread)
-            elif cmd[0:4] == CMD_RETR:
+            elif cmd[0:4] == commands["CMD_RETR"]["cmd"]:
                 retr_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_STOR:
+            elif cmd[0:4] == commands["CMD_STOR"]["cmd"]:
                 stor_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_STOU:
+            elif cmd[0:4] == commands["CMD_STOU"]["cmd"]:
                 stou_ftp(connection_socket, local_thread)
-            elif cmd[0:4] == CMD_APPE:
+            elif cmd[0:4] == commands["CMD_APPE"]["cmd"]:
                 appe_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_TYPE:
+            elif cmd[0:4] == commands["CMD_TYPE"]["cmd"]:
                 type_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_RNFR:
+            elif cmd[0:4] == commands["CMD_RNFR"]["cmd"]:
                 rnfr_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_RNTO:
+            elif cmd[0:4] == commands["CMD_RNTO"]["cmd"]:
                 rnto_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_DELE:
+            elif cmd[0:4] == commands["CMD_DELE"]["cmd"]:
                 dele_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:3] == CMD_RMD:
+            elif cmd[0:3] == commands["CMD_RMD"]["cmd"]:
                 rmd_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:3] == CMD_MKD:
+            elif cmd[0:3] == commands["CMD_MKD"]["cmd"]:
                 mkd_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:3] == CMD_PWD:
+            elif cmd[0:3] == commands["CMD_PWD"]["cmd"]:
                 pwd_ftp(connection_socket, local_thread)
-            elif cmd[0:4] == CMD_LIST:
+            elif cmd[0:4] == commands["CMD_LIST"]["cmd"]:
                 list_ftp(connection_socket, local_thread, cmd)
-            elif cmd[0:4] == CMD_NOOP:
+            elif cmd[0:4] == commands["CMD_NOOP"]["cmd"]:
                 noop_ftp(connection_socket, local_thread)
-            elif cmd[0:4] == CMD_PORT:
+            elif cmd[0:4] == commands["CMD_PORT"]["cmd"]:
                 port_ftp(connection_socket, local_thread, cmd)
+            elif cmd[0:4] == commands["CMD_HELP"]["cmd"]:
+                help_ftp(connection_socket, local_thread, cmd)
             else:
                 local_thread = ("You said what? " + cmd)
                 print(local_thread.response)
                 connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
     except OSError as e:
         print("Socket error:", e)
+
+
+# HELP (HELP)
+def help_ftp(connection_socket, local_thread, cmd):
+    global commands
+
+    cmd = cmd[5:-1]
+    if len(cmd) is 0:
+        local_thread.response = "214-The following commands are recognized (* =>'s unimplemented):\n" \
+                                "214-CWD     XCWD*   CDUP    XCUP*   SMNT*   QUIT    PORT    PASV*)\n" \
+                                "214-EPRT*   EPSV*   ALLO*   RNFR    RNTO    DELE    MDTM*   RMD\n" \
+                                "214-XRMD*   MKD     XMKD*   PWD     XPWD*   SIZE*   SYST*   HELP\n" \
+                                "214-NOOP    FEAT*   OPTS*   AUTH*   CCC*    CONF*   ENC*    MIC*\n" \
+                                "214-PBSZ*   PROT*   TYPE    STRU*   MODE*   RETR    STOR    STOU\n" \
+                                "214-APPE    REST*   ABOR*   USER    PASS    ACCT*   REIN*   LIST\n" \
+                                "214-NLST*   STAT*   SITE*   MLSD*   MLST*\n" \
+                                "214 Direct comments to arodr967@fiu.edu"
+        connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+    else:
+        cmd = cmd.upper()
+        cmd_key = "CMD_" + cmd
+        for key in commands:
+            if key == cmd_key:
+                print(key)
+                local_thread.response = commands[cmd_key]["syntax"]
+                connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
+                found = True
+                break
+            else:
+                found = False
+
+        if not found:
+            local_thread.response = "502 Unknown command '" + cmd + "'"
+            connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
 
 # QUIT (QUIT)
