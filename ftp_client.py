@@ -140,10 +140,6 @@ if args.info:
     print("FTP Client created by Alicia F Rodriguez Taboada")
     sys.exit()
 
-# DATA_PORT_MAX = 61000
-# DATA_PORT_MIN = 60020
-# FTP_PORT = 21
-
 DATA_PORT_BACKLOG = 1
 next_data_port = 1
 
@@ -425,6 +421,8 @@ def ftp_new_dataport(ftp_socket):
     cmd_port_send = CMD_PORT + ' ' + port_arguments + "\r\n"
 
     try:
+        if DEBUG_MODE:
+            print("---> " + CMD_PORT + ' ' + port_arguments)
         ftp_socket.send(str_msg_encode(cmd_port_send))
     except socket.timeout:
         print("Socket timeout. Port may have been used recently. wait and try again!")
@@ -590,10 +588,7 @@ def mkdir_ftp(tokens, ftp_socket):
     ftp_socket.send(str_msg_encode("MKD " + directory_name + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
-    response = str_msg_decode(msg)
-    tokens = response.split()
-
-    if tokens[0] == "501":
+    if str_msg_decode(msg).split()[0] == "501":
         print("usage: mkdir directory-name")
     else:
         if VERBOSE_MODE:
@@ -1268,6 +1263,9 @@ def help_ftp():
 
 
 def rhelp_ftp(tokens, ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         if DEBUG_MODE:
