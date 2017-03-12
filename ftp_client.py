@@ -796,23 +796,27 @@ def get_ftp(tokens, ftp_socket, data_socket):
     size_recv = 0
 
     while True:
-        data = data_connection.recv(RECV_BUFFER)
+        file_data = data_connection.recv(RECV_BUFFER)
 
         if set_type == "A":
             try:
-                data = data.decode()
+                file_data = file_data.decode()
             except UnicodeDecodeError:
                 print("550 " + remote_file + ": Is an image.\nSet file transfer mode to IMAGE")
                 file.close()
                 data_connection.close()
                 break
 
-        if len(data) < RECV_BUFFER:
-            file.write(data)
-            size_recv += len(data)
+        if not file_data or file_data == "" or len(file_data) <= 0:
             file.close()
             break
-        file.write(data)
+
+        if len(file_data) < RECV_BUFFER:
+            file.write(file_data)
+            size_recv += len(file_data)
+            file.close()
+            break
+        file.write(file_data)
 
     data_connection.close()
 

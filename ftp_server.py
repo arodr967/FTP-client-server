@@ -403,6 +403,12 @@ def retr_ftp(connection_socket, local_thread, cmd):
             if isinstance(file_data, str):
                 file_data = str_msg_encode(file_data)
 
+            if not file_data or file_data == "" or len(file_data) <= 0:
+                print("i made it")
+                open_file.close()
+                local_thread.data_socket.close()
+                break
+
             if len(file_data) < RECV_BUFFER:
                 local_thread.data_socket.send(file_data)
                 open_file.close()
@@ -716,8 +722,11 @@ def get_type(type):
 
 
 def directory_list(path, local_thread):
-    for item in os.listdir(path):
-        local_thread.data_socket.send(str_msg_encode(response_msg(item)))
+    if directory_is_empty(path):
+        local_thread.data_socket.close()
+    else:
+        for item in os.listdir(path):
+            local_thread.data_socket.send(str_msg_encode(response_msg(item)))
 
 
 def main():
