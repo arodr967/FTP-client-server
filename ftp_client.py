@@ -2,6 +2,7 @@ from socket import *
 import os
 import sys
 import argparse
+import getpass
 
 # Global constants
 
@@ -998,9 +999,9 @@ def mdelete_ftp(tokens, ftp_socket):
 
     for remote_file in tokens:
         if remote_file.upper() != CMD_MDELETE:
-            confirmDelete = input("mdelete " + remote_file + "? ")
+            confirm_delete = input("mdelete " + remote_file + "? ")
 
-            if confirmDelete.upper() != "NO":
+            if confirm_delete.upper() != "NO":
                 ftp_socket.send(str_msg_encode("DELE " + remote_file + "\n"))
                 msg = ftp_socket.recv(RECV_BUFFER)
                 if VERBOSE_MODE:
@@ -1042,7 +1043,7 @@ def relogin(username, password, logged_on, tokens, hostname, ftp_socket):
 
     if len(tokens) < 3:
         username = input("Username: ")
-        password = input("Password: ")
+        password = getpass.getpass("Password:")
     else:
         username = tokens[1]
         password = tokens[2]
@@ -1077,7 +1078,7 @@ def user_ftp(username, password, tokens, ftp_socket, hostname):
         sys.stdout.write(str_msg_decode(msg, True))
 
     if password is "":
-        password = input("Password: ")
+        password = getpass.getpass("Password:")
 
     ftp_socket.send(str_msg_encode("PASS " + password + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -1109,7 +1110,7 @@ def login(username, password, ftp_socket):
         sys.stdout.write(str_msg_decode(msg, True))
 
     if password is None or password.strip() is "":
-        password = input("Password: ")
+        password = getpass.getpass("Password:")
 
     ftp_socket.send(str_msg_encode("PASS " + password + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
