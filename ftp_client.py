@@ -250,6 +250,10 @@ def run_commands(tokens, logged_on, ftp_socket):
         lpwd_ftp()
         return "", logged_on, ftp_socket
 
+    if cmd == CMD_LLS:
+        lls_ftp(tokens)
+        return "", logged_on, ftp_socket
+
     if cmd == CMD_CDUP:
         cdup_ftp(ftp_socket)
         return "", logged_on, ftp_socket
@@ -487,6 +491,30 @@ def lcd_ftp(tokens):
 def lpwd_ftp():
     global current_directory
     print("Local directory now " + current_directory)
+
+
+def lls_ftp(tokens):
+
+    global current_directory
+
+    if len(tokens) > 1:
+        directory = tokens[1]
+    else:
+        directory = ""
+
+    if directory != "":
+        path = os.path.join(current_directory, directory)
+        if os.path.exists(path):
+            directory_list(path)
+        else:
+            print("450 " + directory + ": No such file or directory")
+
+    directory_list(current_directory)
+
+
+def directory_list(path):
+    for item in os.listdir(path):
+        print(item)
 
 
 def cd_ftp(tokens, ftp_socket):
