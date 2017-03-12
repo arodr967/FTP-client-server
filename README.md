@@ -5,7 +5,7 @@ The following is an implementation of an FTP client and server in Python3 which 
 1. Make sure you have Python 3 installed on your machine.
 2. [Getting started](#getting-started)
 3. [Configurations](#configurations)
-4. [Additional Commands & Features Implemented](additional-commands-&-features-implemented)
+4. [Additional Commands & Features Implemented](#additional-commands-&-features-implemented)
 5. [Usage](#usage)
 
 ## Getting started
