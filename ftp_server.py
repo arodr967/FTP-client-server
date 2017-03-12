@@ -4,6 +4,7 @@ import sys
 import os
 import string
 import random
+import argparse
 
 
 # Global Variables & Constants
@@ -11,21 +12,40 @@ import random
 thread_list = []
 RECV_BUFFER = 1024
 
-config_path = os.path.abspath("ftpserver/conf")
+parser = argparse.ArgumentParser(prog="python3 ftp_server")
+parser.add_argument("-port", help="port number")
+parser.add_argument("-configuration", help="configuration file path")
+parser.add_argument("-max", help="maximum number of connections")
+parser.add_argument("-userdb", help="user file path")
 
-with open(config_path + "/sys.cfg", "r") as config_file:
+args = parser.parse_args()
+
+if args.configuration is not None:
+    config_path = os.path.abspath(args.configuration)
+else:
+    config_path = os.path.abspath("ftpserver/conf/sys.cfg")
+
+with open(config_path, "r") as config_file:
     data = config_file.read().split("\n")
 
 FTP_ROOT = data[0].split(" ")[1]
 USER_DATA_PATH = data[1].split(" ")[1]
-USER_DATA_FILE = data[2].split(" ")[1]
-FTP_MODE = data[3].split(" ")[1]
-DATA_PORT_FTP_SERVER = int(data[6].split(" ")[1])
-FTP_LOG_PATH = data[9].split(" ")[1]
-FTP_LOG_FILE = data[10].split(" ")[1]
-SERVICE_PORT = int(data[11].split(" ")[1])
+FTP_MODE = data[2].split(" ")[1]
+DATA_PORT_FTP_SERVER = int(data[3].split(" ")[1])
+MAX_USER_SUPPORT = int(data[5].split(" ")[1])
+FTP_LOG_PATH = data[6].split(" ")[1]
+SERVICE_PORT = int(data[7].split(" ")[1])
 
 config_file.close()
+
+if args.port is not None:
+    DATA_PORT_FTP_SERVER = args.port
+
+if args.max is not None:
+    MAX_USER_SUPPORT = args.max
+
+if args.userdb is not None:
+    USER_DATA_PATH = args.userdb
 
 USER_TYPE_ADMIN = "ADMIN"
 USER_TYPE_USER = "USER"
@@ -250,15 +270,10 @@ def user_ftp(connection_socket, local_thread, cmd):
 # PASSword (PASS)
 def pass_ftp(connection_socket, local_thread, cmd):
     global USER_DATA_PATH
-    global USER_DATA_FILE
 
     user_data_path = os.path.abspath(USER_DATA_PATH)
-    print(user_data_path)
-    print(USER_DATA_PATH)
-    print(USER_DATA_FILE)
-    print(user_data_path + USER_DATA_FILE)
 
-    with open(user_data_path + USER_DATA_FILE, "r") as user_data_file:
+    with open(user_data_path, "r") as user_data_file:
         user_data = user_data_file.read().split("\n")
 
     for user in user_data:
