@@ -1,11 +1,7 @@
 from socket import *
 import threading
-import time
 import sys
-import traceback
-import errno
 import os
-import subprocess
 import string
 import random
 
@@ -16,7 +12,6 @@ thread_list = []
 RECV_BUFFER = 1024
 
 config_path = os.path.abspath("ftpserver/conf")
-print(config_path)
 
 with open(config_path + "/sys.cfg", "r") as config_file:
     data = config_file.read().split("\n")
@@ -159,6 +154,10 @@ def pass_ftp(connection_socket, local_thread, cmd):
     global USER_DATA_FILE
 
     user_data_path = os.path.abspath(USER_DATA_PATH)
+    print(user_data_path)
+    print(USER_DATA_PATH)
+    print(USER_DATA_FILE)
+    print(user_data_path + USER_DATA_FILE)
 
     with open(user_data_path + USER_DATA_FILE, "r") as user_data_file:
         user_data = user_data_file.read().split("\n")
@@ -229,6 +228,8 @@ def cwd_ftp(connection_socket, local_thread, cmd):
         if directory == "/":
             local_thread.current_directory = local_thread.base_directory
             local_thread.response = "250 CWD command successful"
+        elif directory == "..":
+            cdup_ftp(connection_socket, local_thread)
         elif directory[0] == '/':
             path = os.path.join(local_thread.base_directory, directory[1:])
 
