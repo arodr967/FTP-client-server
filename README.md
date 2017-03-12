@@ -5,7 +5,7 @@ The following is an implementation of an FTP client and server in Python3 which 
 1. Make sure you have Python 3 installed on your machine.
 2. [Getting started](#getting-started)
 3. [Configurations](#configurations)
-4. [Additional Commands & Features Implemented](#additional-commands-&-features-implemented)
+4. [Additional Commands and Features Implemented](#additional-commands-and-features-implemented)
 5. [Usage](#usage)
 
 ## Getting started
@@ -88,7 +88,7 @@ username password type
 ```
 Once you create a new user, you need to create a directory for that user under the `/ftpserver/ftproot/` folder and name it the same as the username.
 
-## Additional Commands & Features Implemented
+## Additional Commands and Features Implemented
 
 The following is a list of commands & features that were optional for the project but were implemented either way:
 
