@@ -5,7 +5,8 @@ The following is an implementation of an FTP client and server in Python3 which 
 1. Make sure you have Python 3 installed on your machine.
 2. [Getting started](#getting-started)
 3. [Configurations](#configurations)
-4. [Usage](#usage)
+4. [Additional Commands & Features Implemented](additional-commands-&-features-implemented)
+5. [Usage](#usage)
 
 ## Getting started
 
@@ -40,16 +41,12 @@ The server config is located in `/ftpserver/conf/sys.cfg` and has the following 
 
 ```
 FTP_ROOT ftpserver/ftproot
-USER_DATA_PATH ftpserver/conf
-USER_DATA_FILE /users.cfg
+USER_DATA_PATH ftpserver/conf/users.cfg
 FTP_MODE ACTIVE
-DATA_PORT_RANGE_MIN 34500
-DATA_PORT_RANGE_MAX 34999
 DATA_PORT_FTP_SERVER 2129
 FTP_ENABLED 1
 MAX_USER_SUPPORT 200
-FTP_LOG_PATH ftpserver/log
-FTP_LOG_FILE /ftp_client.log
+FTP_LOG_PATH ftpserver/log/ftp_client.log
 SERVICE_PORT 2199
 ```
 
@@ -59,14 +56,14 @@ The program reads each line and the first element of the line is the variable an
 The client is located in the root of this project, called `ftp_client.cfg` and has the following form, similar to the server's:
 
 ```
-DATA_PORT_MAX 51000
-DATA_PORT_MIN 50000
-DEFAULT_FTP_PORT 21
-DEFAULT_MODE = Active
+DATA_PORT_MAX 34999
+DATA_PORT_MIN 34500
+DEFAULT_FTP_PORT 2129
+DEFAULT_MODE Active
 DEFAULT_DEBUG_MODE false
 DEFAULT_VERBOSE_MODE true
-DEFAULT_TEST_FILE test1.txt
-DEFAULT_LOG_FILE ftp_client.log
+DEFAULT_TEST_FILE ftpserver/log/test1.txt
+DEFAULT_LOG_FILE ftpserver/log/ftp_client.log
 ```
 
 ### The User Config
@@ -85,6 +82,15 @@ There are only 5 users in the system. If you want to create another user, then a
 username password type
 ```
 Once you create a new user, you need to create a directory for that user under the `/ftpserver/ftproot/` folder and name it the same as the username.
+
+## Additional Commands & Features Implemented
+
+The following is a list of commands & features that were optional for the project but were implemented either way:
+
+1. `recv` client command
+2. `mdelete` client command
+3. Prompt the user for their password without echoing feature
+4. `HELP` server command
 
 ## Usage
 The client and server should be able to run with no arguments given. However, add `--help`, you should see the following:
