@@ -23,8 +23,13 @@ On the other terminal window, type the following to run the client
 python3 ftp_client.py
 ```
 
-Login using the following credentials:
+Open your connection by typing:
 
+```
+>ftp open [hostname]
+```
+
+Then, use the following credentials to login:
 ```
 Username: user1
 Password: pass1
