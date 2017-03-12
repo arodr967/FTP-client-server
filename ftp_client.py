@@ -1,11 +1,7 @@
 from socket import *
 import os
-import os.path
-import errno
-import traceback
 import sys
 import argparse
-import imghdr
 
 # Global constants
 
@@ -60,7 +56,7 @@ CMD_DEBUG = "DEBUG"
 
 # Parse arguments
 
-parser = argparse.ArgumentParser(prog="python3 ftp")
+parser = argparse.ArgumentParser(prog="python3 ftp_client")
 parser.add_argument("-hn", help="hostname")
 parser.add_argument("-u", "--user", default="", help="username")
 parser.add_argument("-w", default="", help="password")
