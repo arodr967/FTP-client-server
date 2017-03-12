@@ -48,14 +48,14 @@ CMD_OPEN = "OPEN"
 CMD_FTP = "FTP"
 CMD_APPEND = "APPEND"
 CMD_LPWD = "LPWD"
+CMD_RHELP = "RHELP"
+CMD_TYPE = "TYPE"
+CMD_LLS = "LLS"
 
 # TODO
 
-CMD_RHELP = "RHELP"
-CMD_TYPE = "TYPE"
 CMD_VERBOSE = "VERBOSE"
 CMD_DEBUG = "DEBUG"
-CMD_LLS = "LLS"
 
 
 # Parse arguments
@@ -227,7 +227,7 @@ def run_commands(tokens, logged_on, ftp_socket):
         return "", logged_on, ftp_socket
 
     if cmd == CMD_RHELP:
-        rhelp_ftp()
+        rhelp_ftp(tokens, ftp_socket)
         return "", logged_on, ftp_socket
 
     if cmd == CMD_NOOP:
@@ -346,6 +346,10 @@ def run_commands(tokens, logged_on, ftp_socket):
         logged_on, ftp_socket = open_ftp(tokens)
         return "", logged_on, ftp_socket
 
+    if cmd == CMD_TYPE:
+        type_ftp(tokens, logged_on, ftp_socket)
+        return "", logged_on, ftp_socket
+
     return "?Invalid command", logged_on, ftp_socket
 
 
@@ -395,6 +399,9 @@ def ftp_connecthost(hostname):
 
 
 def ftp_new_dataport(ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     global next_data_port
     data_port = next_data_port
@@ -434,6 +441,9 @@ def ftp_new_dataport(ftp_socket):
 
 
 def noop_ftp(ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     ftp_socket.send(str_msg_encode("NOOP\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -441,6 +451,9 @@ def noop_ftp(ftp_socket):
 
 
 def pwd_ftp(ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     ftp_socket.send(str_msg_encode("PWD\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -518,6 +531,9 @@ def directory_list(path):
 
 
 def cd_ftp(tokens, ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         remote_directory = input("(remote-directory) ")
@@ -530,12 +546,19 @@ def cd_ftp(tokens, ftp_socket):
 
 
 def cdup_ftp(ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
+
     ftp_socket.send(str_msg_encode("CDUP\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     sys.stdout.write(str_msg_decode(msg, True))
 
 
 def mkdir_ftp(tokens, ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         directory_name = input("(directory-name) ")
@@ -555,6 +578,9 @@ def mkdir_ftp(tokens, ftp_socket):
 
 
 def rmdir_ftp(tokens, ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         directory_name = input("(directory-name) ")
@@ -574,6 +600,9 @@ def rmdir_ftp(tokens, ftp_socket):
 
 
 def ascii_ftp(ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     global set_type
     set_type = "A"
@@ -584,6 +613,9 @@ def ascii_ftp(ftp_socket):
 
 
 def image_ftp(ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     global set_type
     set_type = "I"
@@ -627,6 +659,9 @@ def verbose_ftp():
 
 
 def rename_ftp(tokens, ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         from_name = input("(from-name) ")
@@ -681,6 +716,10 @@ def rename_ftp(tokens, ftp_socket):
 
 
 def get_ftp(tokens, ftp_socket, data_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
+
     global set_type
 
     if len(tokens) is 1:
@@ -745,6 +784,9 @@ def get_file_mode(mode):
 
 
 def put_ftp(tokens, ftp_socket, data_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     global sunique
 
@@ -803,6 +845,9 @@ def put_ftp(tokens, ftp_socket, data_socket):
 
 
 def append_ftp(tokens, ftp_socket, data_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         local_file = input("(local-file) ")
@@ -856,6 +901,9 @@ def append_ftp(tokens, ftp_socket, data_socket):
 
 
 def ls_ftp(tokens, ftp_socket, data_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) > 1:
         ftp_socket.send(str_msg_encode("LIST " + tokens[1] + "\n"))
@@ -891,6 +939,9 @@ def ls_ftp(tokens, ftp_socket, data_socket):
 
 
 def delete_ftp(tokens, ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         remote_file = input("(remote-file) ")
@@ -914,6 +965,9 @@ def delete_ftp(tokens, ftp_socket):
 
 
 def mdelete_ftp(tokens, ftp_socket):
+    if ftp_socket is None:
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         remote_files = input("(remote-files) ")
@@ -979,9 +1033,8 @@ def relogin(username, password, logged_on, tokens, hostname, ftp_socket):
 
 def user_ftp(username, password, tokens, ftp_socket, hostname):
     if ftp_socket is None:
-        ftp_socket = ftp_connecthost(hostname)
-        msg = ftp_socket.recv(RECV_BUFFER)
-        print(str_msg_decode(msg, True))
+        print("Not connected.")
+        return False
 
     if len(tokens) is 1:
         username = input("(username) ")
@@ -1055,36 +1108,60 @@ def get_type(type):
         return ""
 
 
+def get_type_code(type):
+    if type == "ASCII":
+        return "A"
+    elif type == "BINARY" or type == "IMAGE":
+        return "I"
+    else:
+        return None
+
+
+def type_ftp(tokens, logged_on, ftp_socket):
+    global set_type
+
+    if ftp_socket is None or logged_on is False:
+        print("Not connected.")
+        return
+
+    if len(tokens) is 1:
+        print("Using " + get_type(set_type).lower() + " mode to transfer files.")
+        return
+    else:
+        new_type = tokens[1]
+        temp_type = get_type_code(new_type.upper())
+
+        if temp_type is None:
+            print(new_type + ": unknown mode")
+        else:
+            set_type = temp_type
+            ftp_socket.send(str_msg_encode("TYPE " + set_type + "\n"))
+            msg = ftp_socket.recv(RECV_BUFFER)
+            sys.stdout.write(str_msg_decode(msg, True))
+
+
 def help_ftp():
-    # TODO: Accept 1 argument which which will give a brief description of selected command.
 
-    print("Commands may be abbreviated.  Commands are:\n\n"
-          "!		dir		    mdelete \n"
-          "?		disconnect	mdir    \n"
-          "exit		put         type    \n"
-          "append	mkdir		pwd     \n"
-          "ascii	get			quit    \n"
-          "sunique  binary      recv    \n"
-          "bye		help        debug   \n"
-          "cd		image		rhelp   \n"
-          "cdup		rename		user    \n"
-          "close	open		verbose \n"
-          "lcd		rmdir		delete  \n"
-          "ls                           \n")
+    print("Commands may be abbreviated.  Commands are:\n")
+    print('{0:15} {1:15} {2:15} {3:15} {4:15}'.format("!", "?", "dir", "mdelete", "disconnect"))
+    print('{0:15} {1:15} {2:15} {3:15} {4:15}'.format("mdir", "exit", "put", "type", "append"))
+    print('{0:15} {1:15} {2:15} {3:15} {4:15}'.format("mkdir", "pwd", "ascii", "get", "quit"))
+    print('{0:15} {1:15} {2:15} {3:15} {4:15}'.format("sunique", "binary", "recv", "bye", "help"))
+    print('{0:15} {1:15} {2:15} {3:15} {4:15}'.format("debug", "cd", "image", "rhelp", "cdup"))
+    print('{0:15} {1:15} {2:15} {3:15} {4:15}'.format("rename", "user", "close", "open", "verbose"))
+    print('{0:15} {1:15} {2:15} {3:15} {4:15}'.format("lcd", "rmdir", "delete", "ls", "lcd"))
+    print('{0:15} {1:15}'.format("lls", "lpwd"))
 
 
-def rhelp_ftp():
-    # TODO: Accept 1 argument which which will give a brief description of selected command.
+def rhelp_ftp(tokens, ftp_socket):
 
-    print("214-The following commands are recognized (* =>'s unimplemented):\n"
-          "214-CWD     XCWD*   CDUP    XCUP*   SMNT*   QUIT    PORT    PASV*)\n"
-          "214-EPRT*   EPSV*   ALLO*   RNFR    RNTO    DELE    MDTM*   RMD\n"
-          "214-XRMD*   MKD     XMKD*   PWD     XPWD*   SIZE*   SYST*   HELP\n"
-          "214-NOOP    FEAT*   OPTS*   AUTH*   CCC*    CONF*   ENC*    MIC*\n"
-          "214-PBSZ*   PROT*   TYPE    STRU*   MODE*   RETR    STOR    STOU\n"
-          "214-APPE    REST*   ABOR*   USER    PASS    ACCT*   REIN*   LIST\n"
-          "214-NLST*   STAT*   SITE*   MLSD*   MLST*\n"
-          "214 Direct comments to arodr967@fiu.edu")
+    if len(tokens) is 1:
+        ftp_socket.send(str_msg_encode("HELP\n"))
+    else:
+        ftp_socket.send(str_msg_encode("HELP " + tokens[1] + "\n"))
+
+    msg = ftp_socket.recv(RECV_BUFFER)
+    sys.stdout.write(str_msg_decode(msg))
 
 # Calls main function.
 main()
