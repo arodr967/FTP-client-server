@@ -44,35 +44,35 @@ CMD_CLOSE = "CLOSE"
 CMD_NOOP = "NOOP"
 CMD_LCD = "LCD"
 CMD_USAGE = "USAGE"
-
-# TODO
-
 CMD_OPEN = "OPEN"
 CMD_FTP = "FTP"
 CMD_APPEND = "APPEND"
+CMD_LPWD = "LPWD"
+
+# TODO
+
 CMD_RHELP = "RHELP"
 CMD_TYPE = "TYPE"
 CMD_VERBOSE = "VERBOSE"
 CMD_DEBUG = "DEBUG"
 CMD_LLS = "LLS"
-CMD_LPWD = "LPWD"
 
 
 # Parse arguments
 
 parser = argparse.ArgumentParser(prog="python3 ftp")
-parser.add_argument("-hn", default="cnt4713.cs.fiu.edu", help="hostname")
+parser.add_argument("-hn", help="hostname")
 parser.add_argument("-u", "--user", default="", help="username")
 parser.add_argument("-w", default="", help="password")
-parser.add_argument("-fp", default="2129", help="FTP ftpserver port")
-parser.add_argument("-p", "--passive", action="store_true", help="passive")
-parser.add_argument("-a", "--active", action="store_true", help="active")
-parser.add_argument("-D", "--debug", action="store_true", help="debug mode on/off")
-parser.add_argument("-V", "--verbose", action="store_true", help="verbose for additional output")
-parser.add_argument("-dpr", default="34500-34999", help="data port range")
-parser.add_argument("-c", "--config", default="./ftpserver/conf/sys.cfg", help="configuration file")
+parser.add_argument("-fp", help="FTP ftpserver port")
+parser.add_argument("-p", "--passive",  help="passive")
+parser.add_argument("-a", "--active", help="active")
+parser.add_argument("-D", "--debug", help="debug mode on/off")
+parser.add_argument("-V", "--verbose", help="verbose for additional output")
+parser.add_argument("-dpr", help="data port range")
+parser.add_argument("-c", "--config", default="ftp_client.cfg", help="configuration file")
 parser.add_argument("-t", help="run test file")
-parser.add_argument("-T", default="./tests/test1.txt", help="run default test file")
+parser.add_argument("-T", help="run default test file")
 parser.add_argument("-L", "--log", default="./ftpserver/log/ftp_client.log", help="log messages")
 parser.add_argument("-LALL", default="store_false", help="log all output to log file and screen")
 parser.add_argument("-LONLY", default="store_false", help="log all output to a log file")
@@ -81,8 +81,38 @@ parser.add_argument("-info", action="store_true", help="prints info about the st
 
 args = parser.parse_args()
 
-debug = False
-verbose = True
+
+with open("ftp_client.cfg", "r") as config_file:
+    data = config_file.read().split("\n")
+
+DATA_PORT_MAX = int(data[0].split(" ")[1])
+DATA_PORT_MIN = int(data[1].split(" ")[1])
+FTP_PORT = int(data[2].split(" ")[1])
+DEFAULT_MODE = data[3].split(" ")[1]
+DEBUG_MODE = data[4].split(" ")[1]
+VERBOSE_MODE = data[5].split(" ")[1]
+TEST_FILE = data[6].split(" ")[1]
+LOG_FILE = data[7].split(" ")[1]
+
+config_file.close()
+
+if args.t is not None:
+    TEST_FILE = args.t
+    run_test = True
+else:
+    run_test = False
+
+config_file = args.config
+
+if args.log is not None:
+    LOG_FILE = args.log
+
+log_all = args.LALL
+log_only = args.LONLY
+info = args.info
+hostname = args.hn
+username = args.user
+password = args.w
 
 if args.passive:
     print("Passive mode is not supported.")
@@ -90,16 +120,16 @@ if args.passive:
 if args.active:
     print("Active mode is on.")
 
-if args.debug:
-    debug = not debug
-    if debug:
+if args.debug is not None:
+    DEBUG_MODE = args.debug
+    if DEBUG_MODE:
         print("Debugging on (debug=1).")
     else:
         print("Debugging off (debug=0).")
 
-if args.verbose:
-    verbose = not verbose
-    if verbose:
+if args.verbose is not None:
+    VERBOSE_MODE = args.verbose
+    if VERBOSE_MODE:
         print("Verbose mode on.")
     else:
         print("Verbose mode off.")
@@ -112,35 +142,17 @@ if args.info:
     print("FTP Client created by Alicia F Rodriguez Taboada")
     sys.exit()
 
-if args.t is not None:
-    test_file = args.t
-    run_test = True
-else:
-    test_file = "./tests/test1.txt"
-    run_test = False
-
 # DATA_PORT_MAX = 61000
 # DATA_PORT_MIN = 60020
 # FTP_PORT = 21
 
-FTP_PORT = int(args.fp)
-DATA_PORT_MAX = int(args.dpr.split("-")[1])
-DATA_PORT_MIN = int(args.dpr.split("-")[0])
 DATA_PORT_BACKLOG = 1
-
 next_data_port = 1
-hostname = args.hn
-username = args.user
-password = args.w
+
 sunique = False
-current_directory = os.path.abspath(".")
+current_directory = os.getcwd()
 base_directory = os.path.abspath("/")
 set_type = "I"
-config_file = args.config
-log_file = args.log
-log_all = args.ALL
-log_only = args.ONLY
-info = args.info
 
 
 def main():
@@ -155,11 +167,13 @@ def main():
     else:
         logon_ready = True
 
-    ftp_socket = ftp_connecthost(hostname)
-    ftp_recv = ftp_socket.recv(RECV_BUFFER)
-    sys.stdout.write(str_msg_decode(ftp_recv))
+    ftp_socket = None
+    if hostname is not None:
+        ftp_socket = ftp_connecthost(hostname)
+        ftp_recv = ftp_socket.recv(RECV_BUFFER)
+        sys.stdout.write(str_msg_decode(ftp_recv))
 
-    if logon_ready:
+    if logon_ready and ftp_socket is not None:
         logged_on = login(username, password, ftp_socket)
 
     keep_running = True
@@ -230,6 +244,10 @@ def run_commands(tokens, logged_on, ftp_socket):
 
     if cmd == CMD_LCD:
         lcd_ftp(tokens)
+        return "", logged_on, ftp_socket
+
+    if cmd == CMD_LPWD:
+        lpwd_ftp()
         return "", logged_on, ftp_socket
 
     if cmd == CMD_CDUP:
@@ -320,6 +338,10 @@ def run_commands(tokens, logged_on, ftp_socket):
         parser.print_help()
         return "", logged_on, ftp_socket
 
+    if cmd == CMD_OPEN or cmd == CMD_FTP:
+        logged_on, ftp_socket = open_ftp(tokens)
+        return "", logged_on, ftp_socket
+
     return "?Invalid command", logged_on, ftp_socket
 
 
@@ -335,6 +357,26 @@ def str_msg_decode(msg, print_strip=False):
     if print_strip:
         str_value.strip('\n')
     return str_value
+
+
+def open_ftp(tokens):
+
+    global username
+    global password
+    global hostname
+
+    if len(tokens) is 1:
+        hostname = input("(to) ")
+    else:
+        hostname = tokens[1]
+
+    ftp_socket = ftp_connecthost(hostname)
+    ftp_recv = ftp_socket.recv(RECV_BUFFER)
+    sys.stdout.write(str_msg_decode(ftp_recv))
+
+    logged_on = login(username, password, ftp_socket)
+
+    return logged_on, ftp_socket
 
 
 def ftp_connecthost(hostname):
@@ -416,12 +458,18 @@ def lcd_ftp(tokens):
 
     if local_directory == "/":
         current_directory = base_directory
+        os.chdir(base_directory)
+        print("Local directory now " + current_directory)
+    elif local_directory == "..":
+        if not os.path.samefile(current_directory, base_directory):
+            current_directory = os.path.abspath(os.path.join(current_directory, ".."))
         print("Local directory now " + current_directory)
     elif local_directory[0] == "/":
         path = os.path.join(base_directory, local_directory[1:])
 
         if os.path.exists(path):
             current_directory = path
+            os.chdir(path)
             print("Local directory now " + current_directory)
         else:
             print("local: " + local_directory[1:] + ": No such file or directory")
@@ -430,9 +478,15 @@ def lcd_ftp(tokens):
 
         if os.path.exists(path):
             current_directory = path
+            os.chdir(path)
             print("Local directory now " + current_directory)
         else:
             print("local: " + local_directory + ": No such file or directory")
+
+
+def lpwd_ftp():
+    global current_directory
+    print("Local directory now " + current_directory)
 
 
 def cd_ftp(tokens, ftp_socket):
@@ -524,10 +578,10 @@ def sunique_ftp():
 
 def debug_ftp():
 
-    global debug
-    debug = not debug
+    global DEBUG_MODE
+    DEBUG_MODE = not DEBUG_MODE
 
-    if debug:
+    if DEBUG_MODE:
         print("Debugging on (debug=1).")
     else:
         print("Debugging off (debug=0).")
@@ -535,10 +589,10 @@ def debug_ftp():
 
 def verbose_ftp():
 
-    global verbose
-    verbose = not verbose
+    global VERBOSE_MODE
+    VERBOSE_MODE = not VERBOSE_MODE
 
-    if verbose:
+    if VERBOSE_MODE:
         print("Verbose mode on.")
     else:
         print("Verbose mode off.")
@@ -942,14 +996,14 @@ def login(username, password, ftp_socket):
 
     ftp_socket.send(str_msg_encode("USER " + username + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
-    print(str_msg_decode(msg, True))
+    sys.stdout.write(str_msg_decode(msg, True))
 
     if password is None or password.strip() is "":
         password = input("Password: ")
 
     ftp_socket.send(str_msg_encode("PASS " + password + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
-    print(str_msg_decode(msg, True))
+    sys.stdout.write(str_msg_decode(msg, True))
 
     str_value = str_msg_decode(msg, False)
     tokens = str_value.split()
