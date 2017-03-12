@@ -3,6 +3,7 @@ import os
 import sys
 import argparse
 import getpass
+import distutils.util
 
 # Global constants
 
@@ -48,9 +49,6 @@ CMD_LPWD = "LPWD"
 CMD_RHELP = "RHELP"
 CMD_TYPE = "TYPE"
 CMD_LLS = "LLS"
-
-# TODO
-
 CMD_VERBOSE = "VERBOSE"
 CMD_DEBUG = "DEBUG"
 
@@ -93,6 +91,9 @@ LOG_FILE = data[7].split(" ")[1]
 
 config_file.close()
 
+VERBOSE_MODE = distutils.util.strtobool(VERBOSE_MODE)
+DEBUG_MODE = distutils.util.strtobool(DEBUG_MODE)
+
 if args.t is not None:
     TEST_FILE = args.t
     run_test = True
@@ -118,14 +119,14 @@ if args.active:
     print("Active mode is on.")
 
 if args.debug is not None:
-    DEBUG_MODE = args.debug
+    DEBUG_MODE = distutils.util.strtobool(args.debug)
     if DEBUG_MODE:
         print("Debugging on (debug=1).")
     else:
         print("Debugging off (debug=0).")
 
 if args.verbose is not None:
-    VERBOSE_MODE = args.verbose
+    VERBOSE_MODE = distutils.util.strtobool(args.verbose)
     if VERBOSE_MODE:
         print("Verbose mode on.")
     else:
@@ -449,6 +450,8 @@ def noop_ftp(ftp_socket):
         print("Not connected.")
         return False
 
+    if DEBUG_MODE:
+        print("---> NOOP")
     ftp_socket.send(str_msg_encode("NOOP\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     sys.stdout.write(str_msg_decode(msg, True))
@@ -459,6 +462,8 @@ def pwd_ftp(ftp_socket):
         print("Not connected.")
         return False
 
+    if DEBUG_MODE:
+        print("---> PWD")
     ftp_socket.send(str_msg_encode("PWD\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     sys.stdout.write(str_msg_decode(msg, True))
@@ -544,6 +549,8 @@ def cd_ftp(tokens, ftp_socket):
     else:
         remote_directory = tokens[1]
 
+    if DEBUG_MODE:
+        print("---> " + "CWD " + remote_directory)
     ftp_socket.send(str_msg_encode("CWD " + remote_directory + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
@@ -558,6 +565,8 @@ def cdup_ftp(ftp_socket):
         print("Not connected.")
         return False
 
+    if DEBUG_MODE:
+        print("---> CDUP")
     ftp_socket.send(str_msg_encode("CDUP\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     if VERBOSE_MODE:
@@ -576,6 +585,8 @@ def mkdir_ftp(tokens, ftp_socket):
     else:
         directory_name = tokens[1]
 
+    if DEBUG_MODE:
+        print("---> " + "MKD " + directory_name)
     ftp_socket.send(str_msg_encode("MKD " + directory_name + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
@@ -603,6 +614,8 @@ def rmdir_ftp(tokens, ftp_socket):
     else:
         directory_name = tokens[1]
 
+    if DEBUG_MODE:
+        print("---> " + "RMD " + directory_name)
     ftp_socket.send(str_msg_encode("RMD " + directory_name + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
@@ -628,6 +641,8 @@ def ascii_ftp(ftp_socket):
     global set_type
     set_type = "A"
 
+    if DEBUG_MODE:
+        print("---> TYPE A")
     ftp_socket.send(str_msg_encode("TYPE A\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     if VERBOSE_MODE:
@@ -642,6 +657,8 @@ def image_ftp(ftp_socket):
     global set_type
     set_type = "I"
 
+    if DEBUG_MODE:
+        print("---> TYPE I")
     ftp_socket.send(str_msg_encode("TYPE I\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     if VERBOSE_MODE:
@@ -719,6 +736,8 @@ def rename_ftp(tokens, ftp_socket):
         from_name = tokens[1]
         to_name = tokens[2]
 
+    if DEBUG_MODE:
+        print("---> " + "RNFR " + from_name)
     ftp_socket.send(str_msg_encode("RNFR " + from_name + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
@@ -728,6 +747,8 @@ def rename_ftp(tokens, ftp_socket):
         if VERBOSE_MODE:
             sys.stdout.write(str_msg_decode(msg, True))
 
+    if DEBUG_MODE:
+        print("---> " + "RNTO " + to_name)
     ftp_socket.send(str_msg_encode("RNTO " + to_name + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
@@ -759,6 +780,8 @@ def get_ftp(tokens, ftp_socket, data_socket):
 
     print("local: " + local_file + " remote: " + remote_file)
 
+    if DEBUG_MODE:
+        print("---> " + "RETR " + remote_file)
     ftp_socket.send(str_msg_encode("RETR " + remote_file + "\n"))
 
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -836,8 +859,12 @@ def put_ftp(tokens, ftp_socket, data_socket):
         return
 
     if not sunique:
+        if DEBUG_MODE:
+            print("---> " + "STOR " + remote_file)
         ftp_socket.send(str_msg_encode("STOR " + remote_file + "\n"))
     else:
+        if DEBUG_MODE:
+            print("---> " + "STOU " + remote_file)
         ftp_socket.send(str_msg_encode("STOU\n"))
 
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -897,6 +924,8 @@ def append_ftp(tokens, ftp_socket, data_socket):
         print("local: " + local_file + ": No such file or directory")
         return
 
+    if DEBUG_MODE:
+        print("---> " + "APPE " + remote_file)
     ftp_socket.send(str_msg_encode("APPE " + remote_file + "\n"))
 
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -943,8 +972,12 @@ def ls_ftp(tokens, ftp_socket, data_socket):
         return False
 
     if len(tokens) > 1:
+        if DEBUG_MODE:
+            print("---> " + "LIST " + tokens[1])
         ftp_socket.send(str_msg_encode("LIST " + tokens[1] + "\n"))
     else:
+        if DEBUG_MODE:
+            print("---> LIST")
         ftp_socket.send(str_msg_encode("LIST\n"))
 
     msg = ftp_socket.recv(RECV_BUFFER)
@@ -997,6 +1030,8 @@ def delete_ftp(tokens, ftp_socket):
     else:
         remote_file = tokens[1]
 
+    if DEBUG_MODE:
+        print("---> " + "DELE " + remote_file)
     ftp_socket.send(str_msg_encode("DELE " + remote_file + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
@@ -1024,7 +1059,9 @@ def mdelete_ftp(tokens, ftp_socket):
         if remote_file.upper() != CMD_MDELETE:
             confirm_delete = input("mdelete " + remote_file + "? ")
 
-            if confirm_delete.upper() != "NO":
+            if distutils.util.strtobool(confirm_delete):
+                if DEBUG_MODE:
+                    print("---> " + "DELE " + remote_file)
                 ftp_socket.send(str_msg_encode("DELE " + remote_file + "\n"))
                 msg = ftp_socket.recv(RECV_BUFFER)
                 if VERBOSE_MODE:
@@ -1042,6 +1079,8 @@ def logout(logged_on, ftp_socket):
         return False, ftp_socket
 
     try:
+        if DEBUG_MODE:
+            print("---> " + CMD_QUIT)
         ftp_socket.send(str_msg_encode("QUIT\n"))
         msg = ftp_socket.recv(RECV_BUFFER)
         if VERBOSE_MODE:
@@ -1099,6 +1138,8 @@ def user_ftp(username, password, tokens, ftp_socket, hostname):
         username = tokens[1]
         password = tokens[2]
 
+    if DEBUG_MODE:
+        print("---> " + "USER " + username)
     ftp_socket.send(str_msg_encode("USER " + username + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     if VERBOSE_MODE:
@@ -1107,6 +1148,8 @@ def user_ftp(username, password, tokens, ftp_socket, hostname):
     if password is "":
         password = getpass.getpass("Password:")
 
+    if DEBUG_MODE:
+        print("---> PASS XXXX")
     ftp_socket.send(str_msg_encode("PASS " + password + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
     if VERBOSE_MODE:
@@ -1132,6 +1175,8 @@ def login(username, password, ftp_socket):
     if username is None or username.strip() is "":
         username = input("Name (" + hostname + "): ")
 
+    if DEBUG_MODE:
+        print("---> " + "USER " + username)
     ftp_socket.send(str_msg_encode("USER " + username + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
@@ -1141,6 +1186,8 @@ def login(username, password, ftp_socket):
     if password is None or password.strip() is "":
         password = getpass.getpass("Password:")
 
+    if DEBUG_MODE:
+        print("---> PASS XXXX")
     ftp_socket.send(str_msg_encode("PASS " + password + "\n"))
     msg = ftp_socket.recv(RECV_BUFFER)
 
@@ -1154,6 +1201,8 @@ def login(username, password, ftp_socket):
         print("Login failed.")
         return False
     else:
+        if DEBUG_MODE:
+            print("---> " + "TYPE " + set_type)
         ftp_socket.send(str_msg_encode("TYPE " + set_type + "\n"))
         ftp_socket.recv(RECV_BUFFER)
         print("Using " + get_type(set_type).lower() + " mode to transfer files.")
@@ -1196,6 +1245,9 @@ def type_ftp(tokens, logged_on, ftp_socket):
             print(new_type + ": unknown mode")
         else:
             set_type = temp_type
+
+            if DEBUG_MODE:
+                print("---> " + "TYPE " + set_type)
             ftp_socket.send(str_msg_encode("TYPE " + set_type + "\n"))
             msg = ftp_socket.recv(RECV_BUFFER)
             if VERBOSE_MODE:
@@ -1218,8 +1270,12 @@ def help_ftp():
 def rhelp_ftp(tokens, ftp_socket):
 
     if len(tokens) is 1:
+        if DEBUG_MODE:
+            print("---> HELP")
         ftp_socket.send(str_msg_encode("HELP\n"))
     else:
+        if DEBUG_MODE:
+            print("---> " + "HELP " + tokens[1])
         ftp_socket.send(str_msg_encode("HELP " + tokens[1] + "\n"))
 
     msg = ftp_socket.recv(RECV_BUFFER)
