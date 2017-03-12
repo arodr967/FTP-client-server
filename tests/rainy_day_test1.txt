@@ -1,0 +1,14 @@
+ftp localhost
+baduser
+usage
+user baduser badpassword
+logout
+login user3 pass3
+debug
+verbose
+type ascii
+type
+type image
+recv things.txt
+disconnect
+bye

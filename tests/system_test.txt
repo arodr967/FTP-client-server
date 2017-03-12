@@ -1,0 +1,30 @@
+rhelp
+cd transfers
+mkdir transfers
+get things.txt somethings.txt
+cd transfers
+put somethings.txt
+sunique
+dir
+put somethings.txt ignored.txt
+sunique
+ls
+append otherthings.txt somethings.txt
+binary
+ascii
+image
+ls
+rename somethings.txt coolthings.txt
+send somethings.txt deleteme.txt
+ls
+delete deleteme.txt
+mkdir deletemedir
+cdup
+rmdir transfers
+cd transfers
+rmdir deletemedir
+ls
+pwd
+ls
+noop
+quit

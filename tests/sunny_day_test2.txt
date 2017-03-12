@@ -1,0 +1,14 @@
+open localhost
+user2
+ls
+mdelete otherthings.txt things.txt
+yes
+yes
+put thing1.txt
+put thing2.txt
+ls
+mdelete thing1.txt thing2.txt
+yes
+yes
+close
+exit

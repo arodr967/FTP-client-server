@@ -1,0 +1,7 @@
+help
+lls
+lcd tests
+lls
+lcd ..
+lpwd
+bye

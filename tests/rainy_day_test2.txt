@@ -1,0 +1,22 @@
+rhelp
+cd transfers
+mkdir transfers
+get things.txt somethings.txt
+cd transfers
+put somethings.txt
+sunique
+dir
+put somethings.txt ignored.txt
+noop
+ftp localhost
+user1
+get fakefile.txt
+send fakefile.txt
+mkdir stuff
+cd stuff
+put thing1.txt
+cdup
+rmdir stuff
+mkdir stuff
+cd fakedir
+quit
