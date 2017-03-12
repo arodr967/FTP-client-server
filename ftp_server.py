@@ -145,7 +145,7 @@ def server_thread(connection_socket, address):
         print(address)
 
         local_thread = threading.local()
-        local_thread.response = response_msg("220 FTP Server v1.0")
+        local_thread.response = "220 FTP Server v1.0"
         local_thread.current_directory = ""
         local_thread.base_directory = ""
         local_thread.rename_from_path = ""
@@ -156,7 +156,7 @@ def server_thread(connection_socket, address):
         local_thread.logged_on = False
         local_thread.data_socket = None
 
-        connection_socket.send(str_msg_encode(local_thread.response))
+        connection_socket.send(str_msg_encode(response_msg(local_thread.response)))
 
         while True:
 
@@ -344,6 +344,7 @@ def cwd_ftp(connection_socket, local_thread, cmd):
             local_thread.response = "250 CWD command successful"
         elif directory == "..":
             cdup_ftp(connection_socket, local_thread)
+            return
         elif directory[0] == '/':
             path = os.path.join(local_thread.base_directory, directory[1:])
 
@@ -600,6 +601,7 @@ def mkd_ftp(connection_socket, local_thread, cmd):
 
         if not os.path.isdir(path):
             os.mkdir(path)
+            local_thread.response = "257 /" + new_directory + " - Directory successfully created"
         else:
             if directory_is_empty(path):
                 local_thread.response = "257 /" + new_directory + " - Directory successfully created"
